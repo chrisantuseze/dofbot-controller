@@ -2,8 +2,11 @@
 (cl:in-package :asdf)
 
 (defsystem "dofbot_pro_info-msg"
-  :depends-on (:roslisp-msg-protocol :roslisp-utils )
+  :depends-on (:roslisp-msg-protocol :roslisp-utils :sensor_msgs-msg
+)
   :components ((:file "_package")
+    (:file "ActionData" :depends-on ("_package_ActionData"))
+    (:file "_package_ActionData" :depends-on ("_package"))
     (:file "AprilTagInfo" :depends-on ("_package_AprilTagInfo"))
     (:file "_package_AprilTagInfo" :depends-on ("_package"))
     (:file "ArmJoint" :depends-on ("_package_ArmJoint"))
@@ -12,6 +15,8 @@
     (:file "_package_CenterXY" :depends-on ("_package"))
     (:file "Image_Msg" :depends-on ("_package_Image_Msg"))
     (:file "_package_Image_Msg" :depends-on ("_package"))
+    (:file "ObservData" :depends-on ("_package_ObservData"))
+    (:file "_package_ObservData" :depends-on ("_package"))
     (:file "Position" :depends-on ("_package_Position"))
     (:file "_package_Position" :depends-on ("_package"))
     (:file "ShapeInfo" :depends-on ("_package_ShapeInfo"))

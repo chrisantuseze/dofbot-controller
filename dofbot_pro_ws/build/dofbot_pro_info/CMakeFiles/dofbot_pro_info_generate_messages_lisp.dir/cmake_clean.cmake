@@ -1,8 +1,10 @@
 file(REMOVE_RECURSE
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/common-lisp/ros/dofbot_pro_info/msg/ActionData.lisp"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/common-lisp/ros/dofbot_pro_info/msg/AprilTagInfo.lisp"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/common-lisp/ros/dofbot_pro_info/msg/ArmJoint.lisp"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/common-lisp/ros/dofbot_pro_info/msg/CenterXY.lisp"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/common-lisp/ros/dofbot_pro_info/msg/Image_Msg.lisp"
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/common-lisp/ros/dofbot_pro_info/msg/ObservData.lisp"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/common-lisp/ros/dofbot_pro_info/msg/Position.lisp"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/common-lisp/ros/dofbot_pro_info/msg/ShapeInfo.lisp"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/common-lisp/ros/dofbot_pro_info/msg/WidthInfo.lisp"

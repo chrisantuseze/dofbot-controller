@@ -1,6 +1,8 @@
 (cl:defpackage dofbot_pro_info-msg
   (:use )
   (:export
+   "<ACTIONDATA>"
+   "ACTIONDATA"
    "<APRILTAGINFO>"
    "APRILTAGINFO"
    "<ARMJOINT>"
@@ -9,6 +11,8 @@
    "CENTERXY"
    "<IMAGE_MSG>"
    "IMAGE_MSG"
+   "<OBSERVDATA>"
+   "OBSERVDATA"
    "<POSITION>"
    "POSITION"
    "<SHAPEINFO>"

@@ -98,8 +98,8 @@ OrbbecSDK_ROS/CMakeFiles/orbbec_camera_generate_messages_eus: /home/jetson/echri
 
 /home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/orbbec_camera/srv/GetCameraInfo.l: /opt/ros/noetic/lib/geneus/gen_eus.py
 /home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/orbbec_camera/srv/GetCameraInfo.l: /home/jetson/echris/object-unveiler/dofbot_pro_ws/src/OrbbecSDK_ROS/srv/GetCameraInfo.srv
-/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/orbbec_camera/srv/GetCameraInfo.l: /opt/ros/noetic/share/sensor_msgs/msg/RegionOfInterest.msg
 /home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/orbbec_camera/srv/GetCameraInfo.l: /opt/ros/noetic/share/sensor_msgs/msg/CameraInfo.msg
+/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/orbbec_camera/srv/GetCameraInfo.l: /opt/ros/noetic/share/sensor_msgs/msg/RegionOfInterest.msg
 /home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/orbbec_camera/srv/GetCameraInfo.l: /opt/ros/noetic/share/std_msgs/msg/Header.msg
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/jetson/echris/object-unveiler/dofbot_pro_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Generating EusLisp code from orbbec_camera/GetCameraInfo.srv"
 	cd /home/jetson/echris/object-unveiler/dofbot_pro_ws/build/OrbbecSDK_ROS && ../catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/geneus/cmake/../../../lib/geneus/gen_eus.py /home/jetson/echris/object-unveiler/dofbot_pro_ws/src/OrbbecSDK_ROS/srv/GetCameraInfo.srv -Iorbbec_camera:/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/OrbbecSDK_ROS/msg -Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg -Isensor_msgs:/opt/ros/noetic/share/sensor_msgs/cmake/../msg -Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg -p orbbec_camera -o /home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/orbbec_camera/srv
@@ -111,8 +111,8 @@ OrbbecSDK_ROS/CMakeFiles/orbbec_camera_generate_messages_eus: /home/jetson/echri
 
 /home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/orbbec_camera/srv/GetDeviceInfo.l: /opt/ros/noetic/lib/geneus/gen_eus.py
 /home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/orbbec_camera/srv/GetDeviceInfo.l: /home/jetson/echris/object-unveiler/dofbot_pro_ws/src/OrbbecSDK_ROS/srv/GetDeviceInfo.srv
-/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/orbbec_camera/srv/GetDeviceInfo.l: /home/jetson/echris/object-unveiler/dofbot_pro_ws/src/OrbbecSDK_ROS/msg/DeviceInfo.msg
 /home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/orbbec_camera/srv/GetDeviceInfo.l: /opt/ros/noetic/share/std_msgs/msg/Header.msg
+/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/orbbec_camera/srv/GetDeviceInfo.l: /home/jetson/echris/object-unveiler/dofbot_pro_ws/src/OrbbecSDK_ROS/msg/DeviceInfo.msg
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/jetson/echris/object-unveiler/dofbot_pro_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Generating EusLisp code from orbbec_camera/GetDeviceInfo.srv"
 	cd /home/jetson/echris/object-unveiler/dofbot_pro_ws/build/OrbbecSDK_ROS && ../catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/geneus/cmake/../../../lib/geneus/gen_eus.py /home/jetson/echris/object-unveiler/dofbot_pro_ws/src/OrbbecSDK_ROS/srv/GetDeviceInfo.srv -Iorbbec_camera:/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/OrbbecSDK_ROS/msg -Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg -Isensor_msgs:/opt/ros/noetic/share/sensor_msgs/cmake/../msg -Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg -p orbbec_camera -o /home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/orbbec_camera/srv
 

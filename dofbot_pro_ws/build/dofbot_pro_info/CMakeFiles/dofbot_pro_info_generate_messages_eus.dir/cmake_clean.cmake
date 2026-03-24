@@ -1,9 +1,11 @@
 file(REMOVE_RECURSE
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/dofbot_pro_info/manifest.l"
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/dofbot_pro_info/msg/ActionData.l"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/dofbot_pro_info/msg/AprilTagInfo.l"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/dofbot_pro_info/msg/ArmJoint.l"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/dofbot_pro_info/msg/CenterXY.l"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/dofbot_pro_info/msg/Image_Msg.l"
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/dofbot_pro_info/msg/ObservData.l"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/dofbot_pro_info/msg/Position.l"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/dofbot_pro_info/msg/ShapeInfo.l"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/roseus/ros/dofbot_pro_info/msg/WidthInfo.l"

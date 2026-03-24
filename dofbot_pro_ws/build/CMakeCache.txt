@@ -520,6 +520,12 @@ dofbot_pro_info_DIR:PATH=/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel
 dofbot_pro_info_SOURCE_DIR:STATIC=/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info
 
 //Value Computed by CMake
+dofbot_pro_v24_BINARY_DIR:STATIC=/home/jetson/echris/object-unveiler/dofbot_pro_ws/build/dofbot_pro_v24
+
+//Value Computed by CMake
+dofbot_pro_v24_SOURCE_DIR:STATIC=/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_v24
+
+//Value Computed by CMake
 dofbot_pro_voice_ctrl_BINARY_DIR:STATIC=/home/jetson/echris/object-unveiler/dofbot_pro_ws/build/dofbot_pro_voice_ctrl
 
 //Value Computed by CMake

@@ -1146,10 +1146,6 @@ opencv2/opencv.hpp
 orbbec_camera/d2c_viewer.h
 /home/jetson/echris/object-unveiler/dofbot_pro_ws/src/OrbbecSDK_ROS/src/orbbec_camera/d2c_viewer.h
 
-/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/OrbbecSDK_ROS/src/jpeg_decoder.cpp
-orbbec_camera/jpeg_decoder.h
--
-
 /home/jetson/echris/object-unveiler/dofbot_pro_ws/src/OrbbecSDK_ROS/src/ob_camera_node.cpp
 orbbec_camera/ob_camera_node.h
 /home/jetson/echris/object-unveiler/dofbot_pro_ws/src/OrbbecSDK_ROS/src/orbbec_camera/ob_camera_node.h

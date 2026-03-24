@@ -5,4 +5,4 @@ Description: Description of dofbot_pro_info
 Version: 0.0.0
 Cflags: -I/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/include
 Libs: -L${prefix}/lib 
-Requires: roscpp rosmsg rospy message_runtime
+Requires: roscpp rosmsg rospy message_runtime sensor_msgs

@@ -49,6 +49,8 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ArmJoint.msg"
     "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/Image_Msg.msg"
     "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/Yolov5Detect.msg"
+    "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ActionData.msg"
+    "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ObservData.msg"
     )
 endif()
 

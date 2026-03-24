@@ -2,6 +2,7 @@
 "use strict";
 
 let Yolov5Detect = require('./Yolov5Detect.js');
+let ActionData = require('./ActionData.js');
 let ArmJoint = require('./ArmJoint.js');
 let Position = require('./Position.js');
 let CenterXY = require('./CenterXY.js');
@@ -11,9 +12,11 @@ let WidthInfo = require('./WidthInfo.js');
 let AprilTagInfo = require('./AprilTagInfo.js');
 let joint_info = require('./joint_info.js');
 let Image_Msg = require('./Image_Msg.js');
+let ObservData = require('./ObservData.js');
 
 module.exports = {
   Yolov5Detect: Yolov5Detect,
+  ActionData: ActionData,
   ArmJoint: ArmJoint,
   Position: Position,
   CenterXY: CenterXY,
@@ -23,4 +26,5 @@ module.exports = {
   AprilTagInfo: AprilTagInfo,
   joint_info: joint_info,
   Image_Msg: Image_Msg,
+  ObservData: ObservData,
 };

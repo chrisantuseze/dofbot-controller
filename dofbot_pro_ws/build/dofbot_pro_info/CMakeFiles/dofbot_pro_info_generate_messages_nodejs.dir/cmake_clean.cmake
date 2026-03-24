@@ -1,8 +1,10 @@
 file(REMOVE_RECURSE
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/gennodejs/ros/dofbot_pro_info/msg/ActionData.js"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/gennodejs/ros/dofbot_pro_info/msg/AprilTagInfo.js"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/gennodejs/ros/dofbot_pro_info/msg/ArmJoint.js"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/gennodejs/ros/dofbot_pro_info/msg/CenterXY.js"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/gennodejs/ros/dofbot_pro_info/msg/Image_Msg.js"
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/gennodejs/ros/dofbot_pro_info/msg/ObservData.js"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/gennodejs/ros/dofbot_pro_info/msg/Position.js"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/gennodejs/ros/dofbot_pro_info/msg/ShapeInfo.js"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/share/gennodejs/ros/dofbot_pro_info/msg/WidthInfo.js"

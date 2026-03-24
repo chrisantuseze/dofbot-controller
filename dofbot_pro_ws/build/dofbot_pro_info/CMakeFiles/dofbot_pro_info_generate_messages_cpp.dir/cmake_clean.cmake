@@ -1,8 +1,10 @@
 file(REMOVE_RECURSE
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/include/dofbot_pro_info/ActionData.h"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/include/dofbot_pro_info/AprilTagInfo.h"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/include/dofbot_pro_info/ArmJoint.h"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/include/dofbot_pro_info/CenterXY.h"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/include/dofbot_pro_info/Image_Msg.h"
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/include/dofbot_pro_info/ObservData.h"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/include/dofbot_pro_info/Position.h"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/include/dofbot_pro_info/ShapeInfo.h"
   "/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel/include/dofbot_pro_info/WidthInfo.h"

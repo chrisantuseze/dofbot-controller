@@ -1,8 +1,8 @@
 # generated from genmsg/cmake/pkg-genmsg.cmake.em
 
-message(STATUS "dofbot_pro_info: 10 messages, 3 services")
+message(STATUS "dofbot_pro_info: 12 messages, 3 services")
 
-set(MSG_I_FLAGS "-Idofbot_pro_info:/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg;-Iactionlib_msgs:/opt/ros/noetic/share/actionlib_msgs/cmake/../msg;-Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg;-Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg")
+set(MSG_I_FLAGS "-Idofbot_pro_info:/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg;-Iactionlib_msgs:/opt/ros/noetic/share/actionlib_msgs/cmake/../msg;-Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg;-Isensor_msgs:/opt/ros/noetic/share/sensor_msgs/cmake/../msg;-Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg")
 
 # Find all generators
 find_package(gencpp REQUIRED)
@@ -65,6 +65,16 @@ add_custom_target(_dofbot_pro_info_generate_messages_check_deps_${_filename}
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/Yolov5Detect.msg" NAME_WE)
 add_custom_target(_dofbot_pro_info_generate_messages_check_deps_${_filename}
   COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "dofbot_pro_info" "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/Yolov5Detect.msg" ""
+)
+
+get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ActionData.msg" NAME_WE)
+add_custom_target(_dofbot_pro_info_generate_messages_check_deps_${_filename}
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "dofbot_pro_info" "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ActionData.msg" "std_msgs/Header:sensor_msgs/Image"
+)
+
+get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ObservData.msg" NAME_WE)
+add_custom_target(_dofbot_pro_info_generate_messages_check_deps_${_filename}
+  COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENMSG_CHECK_DEPS_SCRIPT} "dofbot_pro_info" "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ObservData.msg" "std_msgs/Header:sensor_msgs/Image"
 )
 
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/srv/kinemarics.srv" NAME_WE)
@@ -148,6 +158,18 @@ _generate_msg_cpp(dofbot_pro_info
   ""
   ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/dofbot_pro_info
 )
+_generate_msg_cpp(dofbot_pro_info
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ActionData.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/sensor_msgs/cmake/../msg/Image.msg"
+  ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/dofbot_pro_info
+)
+_generate_msg_cpp(dofbot_pro_info
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ObservData.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/sensor_msgs/cmake/../msg/Image.msg"
+  ${CATKIN_DEVEL_PREFIX}/${gencpp_INSTALL_DIR}/dofbot_pro_info
+)
 
 ### Generating Services
 _generate_srv_cpp(dofbot_pro_info
@@ -200,6 +222,10 @@ add_dependencies(dofbot_pro_info_generate_messages_cpp _dofbot_pro_info_generate
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/Image_Msg.msg" NAME_WE)
 add_dependencies(dofbot_pro_info_generate_messages_cpp _dofbot_pro_info_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/Yolov5Detect.msg" NAME_WE)
+add_dependencies(dofbot_pro_info_generate_messages_cpp _dofbot_pro_info_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ActionData.msg" NAME_WE)
+add_dependencies(dofbot_pro_info_generate_messages_cpp _dofbot_pro_info_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ObservData.msg" NAME_WE)
 add_dependencies(dofbot_pro_info_generate_messages_cpp _dofbot_pro_info_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/srv/kinemarics.srv" NAME_WE)
 add_dependencies(dofbot_pro_info_generate_messages_cpp _dofbot_pro_info_generate_messages_check_deps_${_filename})
@@ -277,6 +303,18 @@ _generate_msg_eus(dofbot_pro_info
   ""
   ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/dofbot_pro_info
 )
+_generate_msg_eus(dofbot_pro_info
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ActionData.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/sensor_msgs/cmake/../msg/Image.msg"
+  ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/dofbot_pro_info
+)
+_generate_msg_eus(dofbot_pro_info
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ObservData.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/sensor_msgs/cmake/../msg/Image.msg"
+  ${CATKIN_DEVEL_PREFIX}/${geneus_INSTALL_DIR}/dofbot_pro_info
+)
 
 ### Generating Services
 _generate_srv_eus(dofbot_pro_info
@@ -329,6 +367,10 @@ add_dependencies(dofbot_pro_info_generate_messages_eus _dofbot_pro_info_generate
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/Image_Msg.msg" NAME_WE)
 add_dependencies(dofbot_pro_info_generate_messages_eus _dofbot_pro_info_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/Yolov5Detect.msg" NAME_WE)
+add_dependencies(dofbot_pro_info_generate_messages_eus _dofbot_pro_info_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ActionData.msg" NAME_WE)
+add_dependencies(dofbot_pro_info_generate_messages_eus _dofbot_pro_info_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ObservData.msg" NAME_WE)
 add_dependencies(dofbot_pro_info_generate_messages_eus _dofbot_pro_info_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/srv/kinemarics.srv" NAME_WE)
 add_dependencies(dofbot_pro_info_generate_messages_eus _dofbot_pro_info_generate_messages_check_deps_${_filename})
@@ -406,6 +448,18 @@ _generate_msg_lisp(dofbot_pro_info
   ""
   ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/dofbot_pro_info
 )
+_generate_msg_lisp(dofbot_pro_info
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ActionData.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/sensor_msgs/cmake/../msg/Image.msg"
+  ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/dofbot_pro_info
+)
+_generate_msg_lisp(dofbot_pro_info
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ObservData.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/sensor_msgs/cmake/../msg/Image.msg"
+  ${CATKIN_DEVEL_PREFIX}/${genlisp_INSTALL_DIR}/dofbot_pro_info
+)
 
 ### Generating Services
 _generate_srv_lisp(dofbot_pro_info
@@ -458,6 +512,10 @@ add_dependencies(dofbot_pro_info_generate_messages_lisp _dofbot_pro_info_generat
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/Image_Msg.msg" NAME_WE)
 add_dependencies(dofbot_pro_info_generate_messages_lisp _dofbot_pro_info_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/Yolov5Detect.msg" NAME_WE)
+add_dependencies(dofbot_pro_info_generate_messages_lisp _dofbot_pro_info_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ActionData.msg" NAME_WE)
+add_dependencies(dofbot_pro_info_generate_messages_lisp _dofbot_pro_info_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ObservData.msg" NAME_WE)
 add_dependencies(dofbot_pro_info_generate_messages_lisp _dofbot_pro_info_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/srv/kinemarics.srv" NAME_WE)
 add_dependencies(dofbot_pro_info_generate_messages_lisp _dofbot_pro_info_generate_messages_check_deps_${_filename})
@@ -535,6 +593,18 @@ _generate_msg_nodejs(dofbot_pro_info
   ""
   ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/dofbot_pro_info
 )
+_generate_msg_nodejs(dofbot_pro_info
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ActionData.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/sensor_msgs/cmake/../msg/Image.msg"
+  ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/dofbot_pro_info
+)
+_generate_msg_nodejs(dofbot_pro_info
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ObservData.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/sensor_msgs/cmake/../msg/Image.msg"
+  ${CATKIN_DEVEL_PREFIX}/${gennodejs_INSTALL_DIR}/dofbot_pro_info
+)
 
 ### Generating Services
 _generate_srv_nodejs(dofbot_pro_info
@@ -587,6 +657,10 @@ add_dependencies(dofbot_pro_info_generate_messages_nodejs _dofbot_pro_info_gener
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/Image_Msg.msg" NAME_WE)
 add_dependencies(dofbot_pro_info_generate_messages_nodejs _dofbot_pro_info_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/Yolov5Detect.msg" NAME_WE)
+add_dependencies(dofbot_pro_info_generate_messages_nodejs _dofbot_pro_info_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ActionData.msg" NAME_WE)
+add_dependencies(dofbot_pro_info_generate_messages_nodejs _dofbot_pro_info_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ObservData.msg" NAME_WE)
 add_dependencies(dofbot_pro_info_generate_messages_nodejs _dofbot_pro_info_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/srv/kinemarics.srv" NAME_WE)
 add_dependencies(dofbot_pro_info_generate_messages_nodejs _dofbot_pro_info_generate_messages_check_deps_${_filename})
@@ -664,6 +738,18 @@ _generate_msg_py(dofbot_pro_info
   ""
   ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/dofbot_pro_info
 )
+_generate_msg_py(dofbot_pro_info
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ActionData.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/sensor_msgs/cmake/../msg/Image.msg"
+  ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/dofbot_pro_info
+)
+_generate_msg_py(dofbot_pro_info
+  "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ObservData.msg"
+  "${MSG_I_FLAGS}"
+  "/opt/ros/noetic/share/std_msgs/cmake/../msg/Header.msg;/opt/ros/noetic/share/sensor_msgs/cmake/../msg/Image.msg"
+  ${CATKIN_DEVEL_PREFIX}/${genpy_INSTALL_DIR}/dofbot_pro_info
+)
 
 ### Generating Services
 _generate_srv_py(dofbot_pro_info
@@ -717,6 +803,10 @@ get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro
 add_dependencies(dofbot_pro_info_generate_messages_py _dofbot_pro_info_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/Yolov5Detect.msg" NAME_WE)
 add_dependencies(dofbot_pro_info_generate_messages_py _dofbot_pro_info_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ActionData.msg" NAME_WE)
+add_dependencies(dofbot_pro_info_generate_messages_py _dofbot_pro_info_generate_messages_check_deps_${_filename})
+get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/msg/ObservData.msg" NAME_WE)
+add_dependencies(dofbot_pro_info_generate_messages_py _dofbot_pro_info_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/srv/kinemarics.srv" NAME_WE)
 add_dependencies(dofbot_pro_info_generate_messages_py _dofbot_pro_info_generate_messages_check_deps_${_filename})
 get_filename_component(_filename "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/dofbot_pro_info/srv/cur_joint.srv" NAME_WE)
@@ -746,6 +836,9 @@ endif()
 if(TARGET geometry_msgs_generate_messages_cpp)
   add_dependencies(dofbot_pro_info_generate_messages_cpp geometry_msgs_generate_messages_cpp)
 endif()
+if(TARGET sensor_msgs_generate_messages_cpp)
+  add_dependencies(dofbot_pro_info_generate_messages_cpp sensor_msgs_generate_messages_cpp)
+endif()
 if(TARGET std_msgs_generate_messages_cpp)
   add_dependencies(dofbot_pro_info_generate_messages_cpp std_msgs_generate_messages_cpp)
 endif()
@@ -762,6 +855,9 @@ if(TARGET actionlib_msgs_generate_messages_eus)
 endif()
 if(TARGET geometry_msgs_generate_messages_eus)
   add_dependencies(dofbot_pro_info_generate_messages_eus geometry_msgs_generate_messages_eus)
+endif()
+if(TARGET sensor_msgs_generate_messages_eus)
+  add_dependencies(dofbot_pro_info_generate_messages_eus sensor_msgs_generate_messages_eus)
 endif()
 if(TARGET std_msgs_generate_messages_eus)
   add_dependencies(dofbot_pro_info_generate_messages_eus std_msgs_generate_messages_eus)
@@ -780,6 +876,9 @@ endif()
 if(TARGET geometry_msgs_generate_messages_lisp)
   add_dependencies(dofbot_pro_info_generate_messages_lisp geometry_msgs_generate_messages_lisp)
 endif()
+if(TARGET sensor_msgs_generate_messages_lisp)
+  add_dependencies(dofbot_pro_info_generate_messages_lisp sensor_msgs_generate_messages_lisp)
+endif()
 if(TARGET std_msgs_generate_messages_lisp)
   add_dependencies(dofbot_pro_info_generate_messages_lisp std_msgs_generate_messages_lisp)
 endif()
@@ -796,6 +895,9 @@ if(TARGET actionlib_msgs_generate_messages_nodejs)
 endif()
 if(TARGET geometry_msgs_generate_messages_nodejs)
   add_dependencies(dofbot_pro_info_generate_messages_nodejs geometry_msgs_generate_messages_nodejs)
+endif()
+if(TARGET sensor_msgs_generate_messages_nodejs)
+  add_dependencies(dofbot_pro_info_generate_messages_nodejs sensor_msgs_generate_messages_nodejs)
 endif()
 if(TARGET std_msgs_generate_messages_nodejs)
   add_dependencies(dofbot_pro_info_generate_messages_nodejs std_msgs_generate_messages_nodejs)
@@ -814,6 +916,9 @@ if(TARGET actionlib_msgs_generate_messages_py)
 endif()
 if(TARGET geometry_msgs_generate_messages_py)
   add_dependencies(dofbot_pro_info_generate_messages_py geometry_msgs_generate_messages_py)
+endif()
+if(TARGET sensor_msgs_generate_messages_py)
+  add_dependencies(dofbot_pro_info_generate_messages_py sensor_msgs_generate_messages_py)
 endif()
 if(TARGET std_msgs_generate_messages_py)
   add_dependencies(dofbot_pro_info_generate_messages_py std_msgs_generate_messages_py)
