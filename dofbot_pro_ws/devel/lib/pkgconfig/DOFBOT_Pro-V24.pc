@@ -1,0 +1,8 @@
+prefix=/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel
+
+Name: DOFBOT_Pro-V24
+Description: Description of DOFBOT_Pro-V24
+Version: 1.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

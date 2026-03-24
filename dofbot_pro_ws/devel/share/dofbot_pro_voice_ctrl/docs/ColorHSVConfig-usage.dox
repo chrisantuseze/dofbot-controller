@@ -1,0 +1,30 @@
+\subsubsection usage Usage
+\verbatim
+<node name="colorHSV" pkg="dofbot_pro_voice_ctrl" type="colorHSV">
+  <param name="R_Hmin" type="int" value="0" />
+  <param name="R_Smin" type="int" value="85" />
+  <param name="R_Vmin" type="int" value="126" />
+  <param name="R_Hmax" type="int" value="9" />
+  <param name="R_Smax" type="int" value="253" />
+  <param name="R_Vmax" type="int" value="255" />
+  <param name="G_Hmin" type="int" value="0" />
+  <param name="G_Smin" type="int" value="85" />
+  <param name="G_Vmin" type="int" value="126" />
+  <param name="G_Hmax" type="int" value="9" />
+  <param name="G_Smax" type="int" value="253" />
+  <param name="G_Vmax" type="int" value="255" />
+  <param name="B_Hmin" type="int" value="0" />
+  <param name="B_Smin" type="int" value="85" />
+  <param name="B_Vmin" type="int" value="126" />
+  <param name="B_Hmax" type="int" value="9" />
+  <param name="B_Smax" type="int" value="253" />
+  <param name="B_Vmax" type="int" value="255" />
+  <param name="Y_Hmin" type="int" value="0" />
+  <param name="Y_Smin" type="int" value="85" />
+  <param name="Y_Vmin" type="int" value="126" />
+  <param name="Y_Hmax" type="int" value="9" />
+  <param name="Y_Smax" type="int" value="253" />
+  <param name="Y_Vmax" type="int" value="255" />
+</node>
+\endverbatim
+

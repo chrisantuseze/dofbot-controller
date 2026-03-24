@@ -1,0 +1,52 @@
+ID,Code,Unnamed: 2,Unnamed: 3,Unnamed: 4,Description
+0.0,xiao ya,,,,小亚
+1.0,fen jian yi hao ji qi ma,,,,分拣1号机器码
+2.0,fen jian er hao ji qi ma,,,,分拣2号机器码
+3.0,fen jian san hao ji qi ma,,,,分拣3号机器码
+4.0,fen jian si hao ji qi ma,,,,分拣4号机器码
+5.0,yi chu gao du yi chang ji qi ma,,,,移除高度异常机器码
+6.0,kai shi la ji fen jian,,,,开始垃圾分拣
+7.0,fen jian ke hui shou la ji,,,,分拣可回收垃圾
+8.0,fen jian gan la ji,,,,分拣干垃圾
+9.0,fen jian shi la ji,,,,分拣湿垃圾
+10.0,fen jian hong se kuai,,,,分拣红色块
+11.0,fen jian lv se kuai,,,,分拣绿色块
+12.0,fen jian lan se kuai,,,,分拣蓝色块
+13.0,fen jian huang se kuai,,,,分拣黄色块
+14.0,"yi chu gao du yi chang se kuai
+se",,,,移除高度异常色块
+15.0,zhui zong jia qu ji qi ma,,,,追踪夹取机器码
+16.0,zhui zong jia qu se kuai,,,,追踪夹取色块
+17.0,zhui zong jia qu wu ti,,,,追踪夹取物体KCF
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,

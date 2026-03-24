@@ -1,0 +1,62 @@
+<launch>
+  <!-- ====================================================================
+    policy_inference.launch
+    Run the policy bridge against a live Dofbot Pro.
+
+    Required: arm_driver.py and the camera node must already be running.
+
+    Testing progression:
+      Step 1 – Smoke test (no ML, hardware validation):
+        roslaunch dofbot_policy_bridge policy_inference.launch \
+            policy_type:=mock inference_hz:=0.2 move_time_ms:=2000
+
+      Step 2 – Pre-trained HuggingFace checkpoint (no training needed):
+        roslaunch dofbot_policy_bridge policy_inference.launch \
+            policy_type:=pretrained pretrained_repo:=lerobot/act_koch_real
+
+      Step 3 – Your fine-tuned checkpoint:
+        roslaunch dofbot_policy_bridge policy_inference.launch \
+            policy_type:=act checkpoint_path:=/path/to/checkpoint
+
+      Step 4 – Remote inference server:
+        roslaunch dofbot_policy_bridge policy_inference.launch \
+            policy_type:=server server_url:=http://HOST:8000/predict
+
+    Args:
+      policy_type      mock | pretrained | act | diffusion | server
+      pretrained_repo  HuggingFace repo id (for pretrained mode)
+      checkpoint_path  local LeRobot checkpoint dir (for act/diffusion)
+      server_url       HTTP inference server URL (for server mode)
+      device           cpu | cuda:0
+      inference_hz     control frequency in Hz
+      move_time_ms     servo move duration in ms (use ≥1000 for mock testing)
+      image_height     resize height for policy input
+      image_width      resize width for policy input
+  ==================================================================== -->
+
+  <arg name="policy_type"      default="mock" />
+  <arg name="pretrained_repo"  default="lerobot/act_koch_real" />
+  <arg name="checkpoint_path"  default="" />
+  <arg name="server_url"       default="http://localhost:8000/predict" />
+  <arg name="device"           default="cpu" />
+  <arg name="inference_hz"     default="0.2" />
+  <arg name="move_time_ms"     default="2000" />
+  <arg name="image_height"     default="224" />
+  <arg name="image_width"      default="224" />
+
+  <node name="policy_bridge_node"
+        pkg="dofbot_policy_bridge"
+        type="policy_bridge.py"
+        output="screen"
+        required="true">
+    <param name="policy_type"      value="$(arg policy_type)" />
+    <param name="pretrained_repo"  value="$(arg pretrained_repo)" />
+    <param name="checkpoint_path"  value="$(arg checkpoint_path)" />
+    <param name="server_url"       value="$(arg server_url)" />
+    <param name="device"           value="$(arg device)" />
+    <param name="inference_hz"     value="$(arg inference_hz)" />
+    <param name="move_time_ms"     value="$(arg move_time_ms)" />
+    <param name="image_height"     value="$(arg image_height)" />
+    <param name="image_width"      value="$(arg image_width)" />
+  </node>
+</launch>

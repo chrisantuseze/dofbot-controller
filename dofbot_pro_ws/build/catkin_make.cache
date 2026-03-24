@@ -1,0 +1,2 @@
+DOFBOT_Pro-V24:OrbbecSDK_ROS:apriltag_ros-master/apriltag_ros:arm_moveit_demo:dofbot_pro_KCF:dofbot_pro_RGBDCam:dofbot_pro_apriltag:dofbot_pro_color:dofbot_pro_config:dofbot_pro_info:dofbot_pro_voice_ctrl:dofbot_pro_yolov5:yahboomcar_msgs
+-DCATKIN_DEVEL_PREFIX=/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel -DCMAKE_INSTALL_PREFIX=/home/jetson/echris/object-unveiler/dofbot_pro_ws/install -G Unix Makefiles
