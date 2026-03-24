@@ -13,8 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package()
 
 install(PROGRAMS
-  scripts/policy_bridge.py
   scripts/data_collector.py
+  scripts/robot_controller.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
