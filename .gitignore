@@ -60,3 +60,6 @@ ENV/
 *.png
 *.pth
 *.pt
+
+# Ignore generated ROS build directory
+/dofbot_pro_ws/build/

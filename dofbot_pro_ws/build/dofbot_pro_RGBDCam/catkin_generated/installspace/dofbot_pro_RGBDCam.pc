@@ -1,8 +1,0 @@
-prefix=/home/jetson/echris/object-unveiler/dofbot_pro_ws/install
-
-Name: dofbot_pro_RGBDCam
-Description: Description of dofbot_pro_RGBDCam
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

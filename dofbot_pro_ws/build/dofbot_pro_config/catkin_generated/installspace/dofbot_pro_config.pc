@@ -1,8 +1,0 @@
-prefix=/home/jetson/echris/object-unveiler/dofbot_pro_ws/install
-
-Name: dofbot_pro_config
-Description: Description of dofbot_pro_config
-Version: 0.3.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 
