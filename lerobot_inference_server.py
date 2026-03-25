@@ -415,6 +415,7 @@ class LeRobotInferenceServer:
             bgr = cv2.resize(bgr, (self.img_size[1], self.img_size[0]))
             with self._lock:
                 self._latest_image = bgr
+                print(f"[ImageCallback] Received image: {bgr.shape} dtype={bgr.dtype}")
                 self._image_stamp  = time.time()
         except Exception as e:
             print(f"[ImageCallback] Error: {e}")
