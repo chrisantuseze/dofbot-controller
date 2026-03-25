@@ -4,7 +4,7 @@
 Robot-side scene capture node.
 
 Usage (after roscore is running):
-    rosrun dofbot_pro_RGBDCam scene_capture.py \
+    rosrun dofbot_pro_rgbdcam scene_capture.py \
         --out /home/jetson/echris/object-unveiler/save/real-eval-scenes \
         --count 50
 

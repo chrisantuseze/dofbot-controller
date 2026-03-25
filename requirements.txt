@@ -2,6 +2,32 @@ numpy>=1.24.0
 scikit-learn>=1.2.0
 open3d>=0.17.0
 matplotlib>=3.5.0
-pyyaml
+pyyaml==6.0
 torch
+torchvision
 roslibpy
+
+# vision & data
+opencv-python
+Pillow
+scikit-image
+imutils
+pycocotools
+
+# simulation & robotics
+pybullet
+pyquaternion==0.9.9
+
+# ML / training
+tensorboard
+einops
+packaging
+h5py
+ipython
+tabulate
+termcolor
+pexpect==4.8.0
+
+# inference APIs
+openai==1.106.1
+openai-clip==1.0.1

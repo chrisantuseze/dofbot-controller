@@ -18,7 +18,7 @@
 #include "kcftracker.h"
 #include "PID.h"
 #include <dynamic_reconfigure/server.h>
-#include <dofbot_pro_KCF/KCFTrackerPIDConfig.h>
+#include <dofbot_pro_kcf/KCFTrackerPIDConfig.h>
 #include <std_msgs/Bool.h>
 #include <time.h>
 #include <dofbot_pro_info/Position.h>
@@ -28,7 +28,7 @@ using namespace cv;
 class ImageConverter {
 public:
     ros::Publisher pub;
-	ros::Publisher pub_pos;
+#include <dofbot_pro_kcf/KCFTrackerPIDConfig.h>
     PID *linear_PID;
     PID *angular_PID;
     ros::NodeHandle n;
@@ -50,21 +50,20 @@ public:
     bool MULTISCALE = true;
     bool LAB = false;
     int center_x;
+
     KCFTracker tracker;
-    dynamic_reconfigure::Server<dofbot_pro_KCF::KCFTrackerPIDConfig> server;
-    dynamic_reconfigure::Server<dofbot_pro_KCF::KCFTrackerPIDConfig>::CallbackType f;
+    dynamic_reconfigure::Server<dofbot_pro_kcf::KCFTrackerPIDConfig> server;
+    dynamic_reconfigure::Server<dofbot_pro_kcf::KCFTrackerPIDConfig>::CallbackType f;
 
     ImageConverter(ros::NodeHandle &n);
 
     ~ImageConverter();
 
-    void PIDcallback(dofbot_pro_KCF::KCFTrackerPIDConfig &config, uint32_t level);
+    void PIDcallback(dofbot_pro_kcf::KCFTrackerPIDConfig &config, uint32_t level);
 
     void Reset();
 
     void Cancel();
-
-    void imageCb(const sensor_msgs::ImageConstPtr &msg);
 
     void depthCb(const sensor_msgs::ImageConstPtr &msg);
 

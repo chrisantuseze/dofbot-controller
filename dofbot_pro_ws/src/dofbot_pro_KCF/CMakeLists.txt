@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(dofbot_pro_KCF)
+project(dofbot_pro_kcf)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -125,7 +125,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-        include/dofbot_pro_KCF
+        include/dofbot_pro_kcf
         ${OpenCV_INCLUDE_DIRS}
         ${catkin_INCLUDE_DIRS}
 )
@@ -159,7 +159,7 @@ include_directories(
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
-add_subdirectory(include/dofbot_pro_KCF)
+add_subdirectory(include/dofbot_pro_kcf)
 add_executable(KCFTracker_node src/KCF_Tracker_main.cpp src/KCF_Tracker.cpp)
 target_link_libraries(KCFTracker_node kcftracker ${OpenCV_LIBRARIES} ${OpenCV_LIBS} ${catkin_LIBRARIES})
 
