@@ -1,2 +1,0 @@
-set(apriltag_ros_MESSAGE_FILES "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/apriltag_ros-master/apriltag_ros/msg/AprilTagDetection.msg;/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/apriltag_ros-master/apriltag_ros/msg/AprilTagDetectionArray.msg")
-set(apriltag_ros_SERVICE_FILES "/home/jetson/echris/object-unveiler/dofbot_pro_ws/src/apriltag_ros-master/apriltag_ros/srv/AnalyzeSingleImage.srv")

@@ -1,8 +1,0 @@
-prefix=/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel
-
-Name: dofbot_pro_yolov5
-Description: Description of dofbot_pro_yolov5
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

@@ -1,8 +1,0 @@
-prefix=/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel
-
-Name: dofbot_pro_apriltag
-Description: Description of dofbot_pro_apriltag
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

@@ -63,3 +63,6 @@ ENV/
 
 # Ignore generated ROS build directory
 /dofbot_pro_ws/build/
+
+# Ignore generated ROS devel directory
+/dofbot_pro_ws/devel/

@@ -1,8 +1,0 @@
-prefix=/home/jetson/echris/object-unveiler/dofbot_pro_ws/devel
-
-Name: arm_moveit_demo
-Description: Description of arm_moveit_demo
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 
