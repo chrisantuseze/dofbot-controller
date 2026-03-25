@@ -36,6 +36,7 @@ public:
     ros::Subscriber depth_sub_;
     ros::Subscriber Joy_sub_;
     ros::Subscriber Move_sub_;
+    ros::Publisher pub_pos;
     ros::Publisher image_pub_;
     const char *RGB_WINDOW = "rgb_img";
     const char *DEPTH_WINDOW = "depth_img";
@@ -66,6 +67,8 @@ public:
     void Cancel();
 
     void depthCb(const sensor_msgs::ImageConstPtr &msg);
+
+    void imageCb(const sensor_msgs::ImageConstPtr &msg);
 
     void JoyCb(const std_msgs::BoolConstPtr &msg);
     

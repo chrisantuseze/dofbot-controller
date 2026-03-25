@@ -423,6 +423,7 @@ class LeRobotInferenceServer:
         try:
             names    = msg.get("name", [])
             positions = msg.get("position", [])
+            print(f"[JointStateCallback] Received joint states: {list(zip(names, positions))}")
             name_to_idx = {n: i for i, n in enumerate(names)}
             state = np.zeros(NUM_JOINTS, dtype=np.float32)
             for k, jname in enumerate(JOINT_NAMES):

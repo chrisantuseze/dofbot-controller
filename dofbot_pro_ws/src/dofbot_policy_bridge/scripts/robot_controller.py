@@ -207,6 +207,7 @@ class RobotController:
                     joints_deg[k] = float(np.interp(
                         d_state, [0.0, 90.0], [30.0, 180.0]))
 
+        print("Current joints (deg): ", [f"{j:.1f}" for j in joints_deg])
         with self._lock:
             self._current_joints = np.array(joints_deg, dtype=np.float32)
 
