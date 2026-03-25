@@ -52,3 +52,6 @@ python lerobot_inference_server.py \
     --inference_hz 10 \
     --move_time_ms 200 \
     --jetson_ip 192.168.0.8
+
+
+Ctrl + Z to stop a program from running
