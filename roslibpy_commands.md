@@ -25,7 +25,10 @@ rosrun dofbot_pro_info arm_driver.py
 ## Jetson terminal #5 - Start camera topic
 roslaunch orbbec_camera dabai_dcw2.launch
 
-## Jetson terminal #6 - Robot controller (safety gate + episode management)
+## Jetson terminal #6 - Start command for the robot side to work.
+rostopic pub /robot/cmd std_msgs/String "data: 'start'"
+
+## Jetson terminal #7 - Robot controller (safety gate + episode management)
 rosrun dofbot_policy_bridge robot_controller.py
 
 ## FINALLY 

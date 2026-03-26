@@ -20,6 +20,10 @@ class ArmDriver:
        self.cur_joints = [90.0, 90.0, 90.0, 00.0, 90.0,30] 
        self.Prefix = rospy.get_param("~prefix", "")
        self.RA2DE = 180 / pi
+
+       # Publish initial state immediately so subscribers have something to read
+       rospy.sleep(0.1)
+       self.joints_states_update()
     
     def Armcallback(self,msg):
         if not isinstance(msg, ArmJoint): 
@@ -59,8 +63,10 @@ class ArmDriver:
     def read_current_joint(self):
         for i in range(6):
             time.sleep(.01)
-            self.cur_joints[i] = self.Arm.Arm_serial_servo_read(i+1)
-            print(self.cur_joints[i])
+            val = self.Arm.Arm_serial_servo_read(i+1)
+            if val is not None:
+                self.cur_joints[i] = val
+            # print(self.cur_joints[i])
             time.sleep(.01)
         self.joints_states_update()
             
@@ -89,11 +95,16 @@ class ArmDriver:
         DEG2RAD = np.array([pi / 180])
         position_src = list(np.dot(array.reshape(-1, 1), DEG2RAD))
         state.position = position_src
-        #self.staPublisher.publish(state)
+        self.staPublisher.publish(state)
+        print(f"[joints_states_update] Published joint states: {list(zip(state.name, state.position))}")
+
 			
 
 if __name__ == '__main__':
+    import threading
     rospy.init_node('Arm_Driver_Node', anonymous=True)
     arm_driver = ArmDriver()
     arm_driver.Arm.Arm_serial_servo_write6(90.0, 90.0, 90.0, 0.0, 90.0, 30.0, 3000)
+    t = threading.Thread(target=arm_driver.pub_cur_joints, daemon=True)
+    t.start()
     rospy.spin()

@@ -86,7 +86,7 @@ SETTLED_THRESHOLD_DEG = 2.0
 
 # Time (seconds) without a new /policy/action message before triggering
 # the heartbeat safety stop.
-HEARTBEAT_TIMEOUT = 3.0
+HEARTBEAT_TIMEOUT = 10.0 #3.0
 
 # ── Episode states ────────────────────────────────────────────────────────────
 STATE_IDLE    = "idle"      # waiting for "start" command
@@ -129,7 +129,7 @@ class RobotController:
         rospy.Subscriber(
             "/policy/action", ArmJoint, self._cb_policy_action, queue_size=1)
         rospy.Subscriber(
-            "/joint_states", JointState, self._cb_joint_states, queue_size=1)
+            "joint_states", JointState, self._cb_joint_states, queue_size=1)
         rospy.Subscriber(
             "/robot/cmd", String, self._cb_cmd, queue_size=10)
 
@@ -178,6 +178,8 @@ class RobotController:
             self._episode_step  += 1
 
         # Forward the (clamped) command to arm_driver.py
+        print(f"Step {self._episode_step}: Commanded joints (deg): ",
+              [f"{j:.1f}" for j in clamped])
         out                = ArmJoint()
         out.joints         = clamped
         out.run_time       = msg.run_time if msg.run_time > 0 else self.step_move_time
@@ -207,7 +209,7 @@ class RobotController:
                     joints_deg[k] = float(np.interp(
                         d_state, [0.0, 90.0], [30.0, 180.0]))
 
-        print("Current joints (deg): ", [f"{j:.1f}" for j in joints_deg])
+        # print("Current joints (deg): ", [f"{j:.1f}" for j in joints_deg])
         with self._lock:
             self._current_joints = np.array(joints_deg, dtype=np.float32)
 
