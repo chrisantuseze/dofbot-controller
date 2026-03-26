@@ -86,7 +86,7 @@ JOINT_NAMES = [
 ]
 
 # ROS topic names
-JOINT_STATE_TOPIC   = "/joint_states"
+JOINT_STATE_TOPIC   = "joint_states"
 IMAGE_TOPIC         = "/camera/color/image_raw"
 
 # Publish to /policy/action so robot_controller.py on the Jetson can
@@ -188,6 +188,7 @@ class MockPolicy:
         [90.0,  90.0,  90.0,  0.0, 100.0,  30.0],   # Arm5 +10°
         [90.0,  90.0,  90.0,  0.0,  90.0, 100.0],   # gripper close
         [90.0,  90.0,  90.0,  0.0,  90.0,  30.0],   # home (gripper open)
+        [90.0,  140.0,  90.0,  0.0,  90.0,  30.0],   # 
     ]
 
     def __init__(self):
@@ -415,7 +416,6 @@ class LeRobotInferenceServer:
             bgr = cv2.resize(bgr, (self.img_size[1], self.img_size[0]))
             with self._lock:
                 self._latest_image = bgr
-                print(f"[ImageCallback] Received image: {bgr.shape} dtype={bgr.dtype}")
                 self._image_stamp  = time.time()
         except Exception as e:
             print(f"[ImageCallback] Error: {e}")
@@ -424,7 +424,6 @@ class LeRobotInferenceServer:
         try:
             names    = msg.get("name", [])
             positions = msg.get("position", [])
-            print(f"[JointStateCallback] Received joint states: {list(zip(names, positions))}")
             name_to_idx = {n: i for i, n in enumerate(names)}
             state = np.zeros(NUM_JOINTS, dtype=np.float32)
             for k, jname in enumerate(JOINT_NAMES):
