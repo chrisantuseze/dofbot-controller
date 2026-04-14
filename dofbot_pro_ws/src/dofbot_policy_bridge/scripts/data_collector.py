@@ -21,6 +21,11 @@ Usage:
         s  - stop and save current episode
         q  - quit
 
+    Via /robot/cmd topic:
+        "record"  - start recording  (NOT "start", which enables the arm)
+        "stop"    - stop and save
+        "discard" - discard current episode
+
 Key topics listened to:
     /camera/color/image_raw  (sensor_msgs/Image)
     /joint_states            (sensor_msgs/JointState)
@@ -38,6 +43,7 @@ import numpy as np
 import rospy
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, JointState
+from std_msgs.msg import String
 
 from dofbot_pro_info.msg import ArmJoint
 
@@ -57,7 +63,7 @@ class DataCollectorNode:
         # Parameters
         self.output_dir    = rospy.get_param("~output_dir", "/tmp/dofbot_dataset")
         self.episode_idx   = int(rospy.get_param("~episode_index", 0))
-        self.record_hz     = float(rospy.get_param("~record_hz", 30.0))
+        self.record_hz     = float(rospy.get_param("~record_hz", 15.0))
         self.img_h         = int(rospy.get_param("~image_height", 224))
         self.img_w         = int(rospy.get_param("~image_width", 224))
 
@@ -87,6 +93,8 @@ class DataCollectorNode:
                          self._cb_joint_states, queue_size=1)
         rospy.Subscriber("ArmAngleUpdate", ArmJoint,
                          self._cb_action, queue_size=1)
+        rospy.Subscriber("/robot/cmd", String,
+                         self._cb_cmd, queue_size=10)
 
         rospy.loginfo("[DataCollector] Ready. Episode index=%d, output=%s",
                       self.episode_idx, self.output_dir)
@@ -101,6 +109,7 @@ class DataCollectorNode:
         try:
             bgr = self._bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
             bgr = cv2.resize(bgr, (self.img_w, self.img_h))
+            bgr = cv2.flip(bgr, 0)  # flip vertically (top ↔ bottom)
             rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
             with self._lock:
                 self._latest_image = rgb
@@ -132,6 +141,23 @@ class DataCollectorNode:
     # Recording control
     # ------------------------------------------------------------------
 
+    def _cb_cmd(self, msg: String):
+        """Handle recording commands from gamepad_teleop or any publisher.
+
+        NOTE: "start" is intentionally NOT handled here — that command is
+        used to enable the arm driver and is published as a latched message
+        that would otherwise auto-start recording on node startup.
+        Send "record" to begin recording instead.
+        """
+        cmd = msg.data.strip().lower()
+        if cmd == "record":
+            self.start_recording()
+        elif cmd in ("stop", "save"):
+            self.stop_recording()
+        elif cmd == "discard":
+            self.discard_episode()
+        # "home" is a robot motion command — nothing to do for the recorder
+
     def start_recording(self):
         with self._lock:
             self._images.clear()
@@ -141,6 +167,18 @@ class DataCollectorNode:
             self._recording = True
         rospy.loginfo("[DataCollector] Recording started for episode %d.",
                       self.episode_idx)
+
+    def discard_episode(self):
+        """Abort recording and discard all buffered frames without saving."""
+        with self._lock:
+            self._recording = False
+            self._images.clear()
+            self._states.clear()
+            self._actions.clear()
+            self._frame_count = 0
+        rospy.logwarn(
+            "[DataCollector] Episode discarded. Next episode index: %d",
+            self.episode_idx)
 
     def stop_recording(self) -> str:
         with self._lock:
@@ -226,7 +264,7 @@ class DataCollectorNode:
             old_settings = None
 
         rate = rospy.Rate(self.record_hz)
-        rospy.loginfo("[DataCollector] Keys: r=start, s=stop+save, q=quit")
+        rospy.loginfo("[DataCollector] Keys: r=record, s=stop+save, q=quit  |  topic /robot/cmd: \"record\"=start, \"stop\"=save, \"discard\"=discard")
 
         try:
             while not rospy.is_shutdown():

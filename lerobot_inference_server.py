@@ -246,30 +246,58 @@ class PretrainedLeRobotPolicy:
 
 
 class LocalACTPolicy:
-    """Fine-tuned ACT checkpoint stored on disk."""
+    """
+    Fine-tuned ACT checkpoint produced by train_act.py.
+
+    Checkpoint layout (output of train_act.py):
+        <checkpoint_dir>/model.pt      ← policy state dict
+        <checkpoint_dir>/config.json   ← ACTConfig constructor kwargs
+        <checkpoint_dir>/stats.json    ← dataset normalisation stats
+    """
     def __init__(self, checkpoint_path: str, device: str = "cpu"):
-        from lerobot.common.policies.act.modeling_act import ACTPolicy
-        from lerobot.common.utils.utils import init_hydra_config
+        import json
         import torch
-        cfg = init_hydra_config(checkpoint_path)
-        self.policy = ACTPolicy(cfg.policy)
+        from lerobot.common.policies.act.configuration_act import ACTConfig
+        from lerobot.common.policies.act.modeling_act import ACTPolicy
+
+        ckpt_dir = Path(checkpoint_path)
+
+        with open(ckpt_dir / "config.json") as fh:
+            config_dict = json.load(fh)
+
+        with open(ckpt_dir / "stats.json") as fh:
+            stats_raw = json.load(fh)
+        dataset_stats = {
+            feat: {k: torch.tensor(v) for k, v in vals.items()}
+            for feat, vals in stats_raw.items()
+        }
+
+        config = ACTConfig(**config_dict)
+        self.policy = ACTPolicy(config, dataset_stats=dataset_stats)
         self.policy.load_state_dict(
-            torch.load(f"{checkpoint_path}/model.pt", map_location=device)
+            torch.load(ckpt_dir / "model.pt", map_location=device,
+                       weights_only=True)
         )
+        self.policy = self.policy.to(device)
         self.policy.eval()
         self.device = device
         print(f"[ACTPolicy] Loaded from {checkpoint_path}")
 
     def predict(self, obs: dict) -> np.ndarray:
         import torch
-        image = torch.from_numpy(obs["image"]).float().unsqueeze(0).to(self.device)
-        state = torch.from_numpy(obs["state"]).float().unsqueeze(0).to(self.device)
+        # obs["image"] is (C, H, W) float32 [0,1].
+        # Policy expects (batch=1, n_obs_steps=1, C, H, W).
+        image = torch.from_numpy(obs["image"]).float()
+        image = image.unsqueeze(0).unsqueeze(0).to(self.device)   # (1, 1, C, H, W)
+        state = torch.from_numpy(obs["state"]).float()
+        state = state.unsqueeze(0).unsqueeze(0).to(self.device)   # (1, 1, 6)
         with torch.no_grad():
             action = self.policy.select_action({
-                "observation.image": image,
-                "observation.state": state,
+                "observation.images.top": image,
+                "observation.state":      state,
             })
         a = action.cpu().numpy()
+        # select_action may return (1, chunk, 6), (1, 6), or (6,)
         if a.ndim == 3:
             a = a[0, 0]
         elif a.ndim == 2:

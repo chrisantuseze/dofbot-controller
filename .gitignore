@@ -203,3 +203,4 @@ dmypy.json
 *.h
 
 paper_viz/real*
+*.hdf5

@@ -1,30 +1,65 @@
 <launch>
   <!-- ====================================================================
     data_collection.launch
-    Record teleoperation episodes for training.
+    Record gamepad-teleoperated pick-and-place demonstrations.
 
-    Args:
-      output_dir     where to write HDF5 episode files (default: ~/dofbot_dataset)
-      episode_index  starting episode number (default: 0)
-      record_hz      recording frequency in Hz (default: 30)
+    Core args:
+      output_dir          where to write HDF5 files   (default: ~/dofbot_dataset)
+      episode_index       starting episode number      (default: 0)
+      record_hz           recording frequency Hz       (default: 30)
+
+    Gamepad args:
+      joy_index      USB joystick device index    (default: 0)
+      speed_dps      max joint speed in deg/s     (default: 60)
+      move_time_ms   arm_driver move time (ms)    (default: 100)
+      btn_j4_neg     button (held) for j4 −ve dir (default: -1 = disabled)
+                     Run scripts/test_gamepad.py to find the correct index.
+
+    Button layout (confirmed, fixed in code):
+      A (btn 0)  — start recording
+      B (btn 1)  — stop + save episode
+      X (btn 2)  — discard episode + go home
+      Y (btn 3)  — held → j4 positive direction
+      Axis 5     — right stick X: +1 opens gripper, −1 closes gripper
   ==================================================================== -->
 
-  <arg name="output_dir"    default="$(env HOME)/dofbot_dataset" />
-  <arg name="episode_index" default="0" />
-  <arg name="record_hz"     default="30" />
-  <arg name="image_height"  default="224" />
-  <arg name="image_width"   default="224" />
+  <arg name="output_dir"         default="$(env HOME)/dofbot_dataset" />
+  <arg name="episode_index"      default="0" />
+  <arg name="record_hz"          default="30" />
+  <arg name="image_height"       default="224" />
+  <arg name="image_width"        default="224" />
 
+  <arg name="joy_index"     default="0" />
+  <arg name="speed_dps"     default="60" />
+  <arg name="move_time_ms"  default="100" />
+  <arg name="btn_j4_neg"    default="-1" />
+
+  <!-- Data collector: saves HDF5 episodes, listens on /robot/cmd -->
   <node name="data_collector_node"
         pkg="dofbot_policy_bridge"
         type="data_collector.py"
         output="screen"
-        launch-prefix="xterm -e"
         required="true">
     <param name="output_dir"    value="$(arg output_dir)" />
     <param name="episode_index" value="$(arg episode_index)" />
     <param name="record_hz"     value="$(arg record_hz)" />
     <param name="image_height"  value="$(arg image_height)" />
     <param name="image_width"   value="$(arg image_width)" />
+  </node>
+
+  <!-- Gamepad teleop: reads USB controller, drives joints, sends /robot/cmd -->
+  <node name="gamepad_teleop_node"
+        pkg="dofbot_policy_bridge"
+        type="gamepad_teleop.py"
+        output="screen"
+        required="true">
+    <!-- Load permanent button/axis config from YAML -->
+    <rosparam file="$(find dofbot_policy_bridge)/config/gamepad_config.yaml"
+              command="load" />
+    <!-- CLI overrides still work: roslaunch ... btn_j4_neg:=5 -->
+    <param name="joy_index"    value="$(arg joy_index)" />
+    <param name="speed_dps"    value="$(arg speed_dps)" />
+    <param name="move_time_ms" value="$(arg move_time_ms)" />
+    <param name="btn_j4_neg"   value="$(arg btn_j4_neg)" />
   </node>
 </launch>

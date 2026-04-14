@@ -1,0 +1,32 @@
+<launch>
+  <!-- ====================================================================
+    keyboard_collection.launch
+    Starts ONLY the data collector.  Run keyboard_teleop separately in its
+    own terminal (it needs interactive stdin):
+
+      rosrun dofbot_policy_bridge keyboard_teleop.py
+
+    Args:
+      output_dir     where to write HDF5 files  (default: ~/dofbot_dataset)
+      episode_index  starting episode number     (default: 0)
+      record_hz      recording frequency Hz      (default: 30)
+  ==================================================================== -->
+
+  <arg name="output_dir"    default="$(env HOME)/dofbot_dataset" />
+  <arg name="episode_index" default="0" />
+  <arg name="record_hz"     default="30" />
+  <arg name="image_height"  default="224" />
+  <arg name="image_width"   default="224" />
+
+  <node name="data_collector_node"
+        pkg="dofbot_policy_bridge"
+        type="data_collector.py"
+        output="screen"
+        required="true">
+    <param name="output_dir"    value="$(arg output_dir)" />
+    <param name="episode_index" value="$(arg episode_index)" />
+    <param name="record_hz"     value="$(arg record_hz)" />
+    <param name="image_height"  value="$(arg image_height)" />
+    <param name="image_width"   value="$(arg image_width)" />
+  </node>
+</launch>

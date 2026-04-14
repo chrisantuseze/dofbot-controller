@@ -1,0 +1,41 @@
+# gamepad_config.yaml
+# Permanent button / axis mapping for gamepad_teleop.py.
+# Edit this file instead of passing launch args every time.
+#
+# To find an unknown index: run
+#   python3 src/dofbot_policy_bridge/scripts/test_gamepad.py
+# then move/press the input you want to use and read the printed index.
+
+# ── Behaviour ────────────────────────────────────────────────────────────────
+joy_index:    0      # USB joystick device index
+control_hz:   30.0   # command publish rate (Hz)
+speed_dps:    60.0   # max joint speed at full stick deflection (deg/s)
+deadzone:     0.08   # axis dead-zone, ignored below this magnitude [0, 1)
+move_time_ms: 100    # arm_driver move-time per command (ms)
+
+# ── Axis mapping ─────────────────────────────────────────────────────────────
+# Set an axis to -1 to leave that joint uncontrolled.
+#
+# Confirmed:
+axis_j0: 0     # left  stick X → base rotation
+axis_j1: 1     # left  stick Y → shoulder  (north = joint up, inverted in code)
+axis_j3: 3     # right stick Y → wrist pitch (north = joint down)
+axis_j5: 5     # right stick X → gripper  (+1 open end, see btn_gripper_close)
+#
+# Not yet confirmed — run test_gamepad.py, move every stick/trigger you
+# haven't used and note which axis index responds.  Then set it here.
+axis_j2: -1    # j2 elbow twist — set to the axis index once identified
+
+# ── Button mapping ───────────────────────────────────────────────────────────
+# Confirmed:
+btn_start_rec:     0   # A — start recording
+btn_stop_rec:      1   # B — stop + save episode
+btn_discard:       2   # X — discard episode + move arm to home
+btn_gripper_close: 8   # button labelled "2" — closes gripper (j5)
+#
+# Needs verification — press Y on test_gamepad.py and put the printed index here.
+btn_j4_pos: 4          # held → j4 twist positive direction
+#
+# Not yet assigned — choose a spare button for j4 negative direction.
+# Set to -1 to leave j4 one-directional for now.
+btn_j4_neg: -1
