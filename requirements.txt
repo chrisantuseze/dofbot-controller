@@ -29,3 +29,4 @@ pexpect==4.8.0
 
 # gamepad teleoperation
 pygame>=2.1.0
+lerobot

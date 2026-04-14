@@ -579,7 +579,7 @@ def parse_args():
     )
     parser.add_argument(
         "--pretrained_repo",
-        default="lerobot/act_koch_real",
+        default="lerobot/act_aloha_sim_transfer_cube_human",
         help="HuggingFace repo id for pretrained mode",
     )
     parser.add_argument(
