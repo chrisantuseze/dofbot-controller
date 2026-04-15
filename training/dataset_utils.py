@@ -129,10 +129,16 @@ class DofBotDataset(Dataset):
             last_action  = ep["actions"][-1:].repeat(pad_len, axis=0)
             actions_chunk = np.concatenate([actions_chunk, last_action], axis=0)
 
+        # Boolean mask: True where action step was padded (not real data)
+        is_pad = np.zeros(self.chunk_size, dtype=bool)
+        if pad_len > 0:
+            is_pad[-pad_len:] = True
+
         return {
-            IMAGE_KEY:  torch.from_numpy(images_obs),              # (1, C, H, W)
-            STATE_KEY:  torch.from_numpy(states_obs),              # (1, 6)
-            ACTION_KEY: torch.from_numpy(actions_chunk),           # (chunk_size, 6)
+            IMAGE_KEY:        torch.from_numpy(images_obs),           # (1, C, H, W)
+            STATE_KEY:        torch.from_numpy(states_obs),           # (1, 6)
+            ACTION_KEY:       torch.from_numpy(actions_chunk),        # (chunk_size, 6)
+            "action_is_pad":  torch.from_numpy(is_pad),               # (chunk_size,) bool
         }
 
 

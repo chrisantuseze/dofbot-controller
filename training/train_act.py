@@ -36,21 +36,25 @@ Checkpoint layout (per save)
         config.json    ← ACTConfig fields (reconstruction spec)
         stats.json     ← dataset normalisation stats
 """
-
+import sys
 import argparse
 import json
 
 import time
-from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
-from training.dataset_utils import (
-    IMAGE_KEY, STATE_KEY, NUM_JOINTS, ACTION_KEY, compute_stats, infinite_loader, stats_to_json, DofBotDataset
-    )
 import torch
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
+
+print(str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # robosuite/
+sys.path.insert(0, str(Path(__file__).resolve().parent))         # data_capture_wm/
+
+from training.dataset_utils import (
+    IMAGE_KEY, STATE_KEY, NUM_JOINTS, ACTION_KEY, compute_stats, infinite_loader, stats_to_json, DofBotDataset
+    )
 
 
 # ── Checkpoint I/O ─────────────────────────────────────────────────────────────
@@ -92,8 +96,9 @@ def build_policy(
     representation of ACTConfig saved alongside each checkpoint.
     """
     try:
-        from lerobot.common.policies.act.configuration_act import ACTConfig
-        from lerobot.common.policies.act.modeling_act import ACTPolicy
+        from lerobot.policies.act.configuration_act import ACTConfig
+        from lerobot.policies.act.modeling_act import ACTPolicy
+        from lerobot.configs.types import FeatureType, PolicyFeature
     except ImportError as exc:
         raise ImportError(
             "LeRobot is not installed.  Run:\n"
@@ -102,19 +107,12 @@ def build_policy(
         ) from exc
 
     config = ACTConfig(
-        input_shapes={
-            IMAGE_KEY: [3, image_h, image_w],
-            STATE_KEY: [NUM_JOINTS],
+        input_features={
+            IMAGE_KEY: PolicyFeature(type=FeatureType.VISUAL, shape=(3, image_h, image_w)),
+            STATE_KEY: PolicyFeature(type=FeatureType.STATE, shape=(NUM_JOINTS,)),
         },
-        output_shapes={
-            ACTION_KEY: [NUM_JOINTS],
-        },
-        input_normalization_modes={
-            IMAGE_KEY: "mean_std",
-            STATE_KEY: "mean_std",
-        },
-        output_normalization_modes={
-            ACTION_KEY: "mean_std",
+        output_features={
+            ACTION_KEY: PolicyFeature(type=FeatureType.ACTION, shape=(NUM_JOINTS,)),
         },
         vision_backbone="resnet18",
         pretrained_backbone_weights="ResNet18_Weights.IMAGENET1K_V1",
@@ -128,20 +126,68 @@ def build_policy(
         dim_feedforward=3200,
         n_encoder_layers=4,
         n_decoder_layers=1,
-        drop_n_last_frames=0,   # we handle padding in DofBotDataset
         temporal_ensemble_coeff=None,
     )
 
-    policy = ACTPolicy(config, dataset_stats=stats)
+    policy = ACTPolicy(config)
     policy = policy.to(device)
 
-    # Serialisable config dict for checkpoint reconstruction
+    # Serialisable config dict for checkpoint reconstruction (scalars only)
     config_dict = {
-        k: v for k, v in asdict(config).items()
-        if not k.startswith("_")
+        "chunk_size":                  chunk_size,
+        "n_obs_steps":                 n_obs_steps,
+        "n_action_steps":              1,
+        "image_h":                     image_h,
+        "image_w":                     image_w,
+        "num_joints":                  NUM_JOINTS,
+        "vision_backbone":             config.vision_backbone,
+        "pretrained_backbone_weights": config.pretrained_backbone_weights,
+        "dim_model":                   config.dim_model,
+        "n_heads":                     config.n_heads,
+        "dim_feedforward":             config.dim_feedforward,
+        "n_encoder_layers":            config.n_encoder_layers,
+        "n_decoder_layers":            config.n_decoder_layers,
+        "use_vae":                     config.use_vae,
+        "latent_dim":                  config.latent_dim,
     }
 
     return policy, config_dict
+
+
+# ── Normalisation helper ───────────────────────────────────────────────────────
+
+def normalize_batch(batch: dict, stats: dict, device: str) -> dict:
+    """
+    Normalise a raw batch from DofBotDataset before passing to ACTPolicy.forward().
+
+    - Squeezes the n_obs_steps=1 time dimension from image and state.
+    - Applies (x - mean) / (std + eps) using the dataset stats.
+    - Passes action_is_pad through unchanged.
+    """
+    eps = 1e-8
+    out = {}
+
+    # Image: (B, 1, C, H, W) → (B, C, H, W), then normalise channel-wise
+    img = batch[IMAGE_KEY].squeeze(1)
+    img_mean = stats[IMAGE_KEY]["mean"].to(device)   # (3, 1, 1)
+    img_std  = stats[IMAGE_KEY]["std"].to(device)    # (3, 1, 1)
+    out[IMAGE_KEY] = (img - img_mean) / (img_std + eps)
+
+    # State: (B, 1, 6) → (B, 6), then normalise per-joint
+    state = batch[STATE_KEY].squeeze(1)
+    state_mean = stats[STATE_KEY]["mean"].to(device)
+    state_std  = stats[STATE_KEY]["std"].to(device)
+    out[STATE_KEY] = (state - state_mean) / (state_std + eps)
+
+    # Action: (B, chunk_size, 6), normalise per-joint
+    action_mean = stats[ACTION_KEY]["mean"].to(device)
+    action_std  = stats[ACTION_KEY]["std"].to(device)
+    out[ACTION_KEY] = (batch[ACTION_KEY] - action_mean) / (action_std + eps)
+
+    # Padding mask: pass through as-is
+    out["action_is_pad"] = batch["action_is_pad"]
+
+    return out
 
 
 # ── Training loop ──────────────────────────────────────────────────────────────
@@ -225,32 +271,22 @@ def train(args: argparse.Namespace) -> None:
     while step < args.num_steps:
         batch = next(data_iter)
 
-        # Move to device
-        batch = {k: v.to(device) for k, v in batch.items()}
-
         # ── Forward pass ──────────────────────────────────────────────────────
         optimizer.zero_grad()
 
+        # Move to device and normalise
+        batch = {k: v.to(device) for k, v in batch.items()}
+        batch = normalize_batch(batch, stats, device)
+
         try:
-            # LeRobot v2: forward returns a dict with a "loss" key
-            output = policy.forward(batch)
-            if isinstance(output, dict):
-                loss = output["loss"]
-                loss_info = {k: v.item() for k, v in output.items()
-                             if isinstance(v, torch.Tensor) and v.numel() == 1}
-            elif isinstance(output, tuple):
-                # Some versions return (loss, loss_dict)
-                loss, loss_dict = output
-                loss_info = {k: v.item() for k, v in loss_dict.items()
-                             if isinstance(v, torch.Tensor) and v.numel() == 1}
-            else:
-                loss = output
-                loss_info = {}
+            # ACTPolicy.forward returns (loss_tensor, loss_dict)
+            loss, loss_dict = policy.forward(batch)
+            loss_info = {k: v for k, v in loss_dict.items()}
         except Exception as exc:
             raise RuntimeError(
                 f"policy.forward() failed at step {step}.\n"
                 f"Batch keys: {list(batch.keys())}\n"
-                f"Batch shapes: {[(k, v.shape) for k, v in batch.items()]}\n"
+                f"Batch shapes: {[(k, v.shape) for k, v in batch.items() if hasattr(v, 'shape')]}\n"
                 f"Original error: {exc}"
             ) from exc
 

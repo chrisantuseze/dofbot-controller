@@ -62,52 +62,15 @@ import math
 import threading
 import time
 from typing import Optional
+from pathlib import Path
 
 import cv2
 import numpy as np
 import roslibpy
+import torch
 
-# ── Constants ─────────────────────────────────────────────────────────────────
-
-NUM_JOINTS   = 6
-RAD2DEG      = 180.0 / math.pi
-DEG2RAD      = math.pi / 180.0
-
-# Servo degree range for the gripper
-GRIPPER_MIN_DEG       = 30.0
-GRIPPER_MAX_DEG       = 180.0
-# joint_states range for the gripper (after arm_driver normalisation)
-GRIPPER_STATE_MIN_DEG = 0.0
-GRIPPER_STATE_MAX_DEG = 90.0
-
-JOINT_NAMES = [
-    "Arm1_Joint", "Arm2_Joint", "Arm3_Joint",
-    "Arm4_Joint", "Arm5_Joint", "grip_joint",
-]
-
-# ROS topic names
-JOINT_STATE_TOPIC   = "joint_states"
-IMAGE_TOPIC         = "/camera/color/image_raw"
-
-# Publish to /policy/action so robot_controller.py on the Jetson can
-# safety-check and sync motion before forwarding to arm_driver.py.
-# Set to "TargetAngle" to bypass the controller (direct mode, no safety gate).
-POLICY_ACTION_TOPIC = "/policy/action"
-
-# robot_controller.py publishes True here when the arm has settled at its
-# last target — used to synchronise inference rate with actual motion.
-ROBOT_READY_TOPIC   = "/robot/ready"
-
-# Episode control — publish "start"/"stop"/"home"/"reset" here
-ROBOT_CMD_TOPIC     = "/robot/cmd"
-
-JOINT_STATE_TYPE    = "sensor_msgs/JointState"
-IMAGE_TYPE          = "sensor_msgs/Image"
-ACTION_MSG_TYPE     = "dofbot_pro_info/ArmJoint"    # from yahboomcar_msgs
-BOOL_TYPE           = "std_msgs/Bool"
-STRING_TYPE         = "std_msgs/String"
-
-
+import constants
+from policy import MockPolicy, LocalACTPolicy, LocalDiffusionPolicy
 # ── Coordinate conversions ─────────────────────────────────────────────────────
 
 def joint_state_rad_to_deg(joints_rad) -> list:
@@ -123,13 +86,13 @@ def joint_state_rad_to_deg(joints_rad) -> list:
     deg = []
     for i, r in enumerate(joints_rad):
         if i < 5:
-            d = r * RAD2DEG + 90.0
+            d = r * constants.RAD2DEG + 90.0
         else:
             # Undo the offset, then reverse the interp
-            d_state = r * RAD2DEG + 90.0
+            d_state = r * constants.RAD2DEG + 90.0
             d = float(np.interp(d_state,
-                                [GRIPPER_STATE_MIN_DEG, GRIPPER_STATE_MAX_DEG],
-                                [GRIPPER_MIN_DEG, GRIPPER_MAX_DEG]))
+                                [constants.GRIPPER_STATE_MIN_DEG, constants.GRIPPER_STATE_MAX_DEG],
+                                [constants.GRIPPER_MIN_DEG, constants.GRIPPER_MAX_DEG]))
         deg.append(float(np.clip(d, 0.0, 270.0)))
     return deg
 
@@ -139,7 +102,7 @@ def policy_action_to_deg(action: np.ndarray) -> list:
     Convert a LeRobot policy output (6,) radians array → servo degree commands.
     LeRobot uses the same radians convention as /joint_states.
     """
-    return joint_state_rad_to_deg(list(action.flatten()[:NUM_JOINTS]))
+    return joint_state_rad_to_deg(list(action.flatten()[:constants.NUM_JOINTS]))
 
 
 # ── Image decode (matches inference_server.py) ────────────────────────────────
@@ -169,174 +132,6 @@ def ros_image_to_cv2(img_msg: dict) -> np.ndarray:
 
     return img  # BGR uint8
 
-
-# ── Policy classes ─────────────────────────────────────────────────────────────
-
-class MockPolicy:
-    """
-    No ML required. Cycles through safe waypoints (near home, ±10° per joint)
-    to confirm the full Jetson ↔ lab ↔ servo pipeline is wired correctly.
-
-    Run with --inference_hz 0.2 --move_time_ms 2000 so movements are slow.
-    """
-    _WAYPOINTS = [
-        [90.0,  90.0,  90.0,  0.0,  90.0,  30.0],   # home
-        [100.0, 90.0,  90.0,  0.0,  90.0,  30.0],   # Arm1 +10°
-        [90.0, 100.0,  90.0,  0.0,  90.0,  30.0],   # Arm2 +10°
-        [90.0,  90.0, 100.0,  0.0,  90.0,  30.0],   # Arm3 +10°
-        [90.0,  90.0,  90.0, 10.0,  90.0,  30.0],   # Arm4 +10°
-        [90.0,  90.0,  90.0,  0.0, 100.0,  30.0],   # Arm5 +10°
-        [90.0,  90.0,  90.0,  0.0,  90.0, 100.0],   # gripper close
-        [90.0,  90.0,  90.0,  0.0,  90.0,  30.0],   # home (gripper open)
-        [90.0,  140.0,  90.0,  0.0,  90.0,  30.0],   # 
-    ]
-
-    def __init__(self):
-        self._step = 0
-        print(f"[MockPolicy] Loaded — {len(self._WAYPOINTS)} waypoints")
-
-    def predict(self, obs: dict) -> np.ndarray:
-        deg = self._WAYPOINTS[self._step % len(self._WAYPOINTS)]
-        print(f"[MockPolicy] Waypoint {self._step % len(self._WAYPOINTS)}: {deg} deg")
-        self._step += 1
-        # Convert to radians (same convention as /joint_states)
-        rad = [(d - 90.0) * DEG2RAD for d in deg[:5]]
-        grip_state = float(np.interp(deg[5],
-                                     [GRIPPER_MIN_DEG, GRIPPER_MAX_DEG],
-                                     [GRIPPER_STATE_MIN_DEG, GRIPPER_STATE_MAX_DEG]))
-        rad.append((grip_state - 90.0) * DEG2RAD)
-        return np.array(rad, dtype=np.float32)
-
-
-class PretrainedLeRobotPolicy:
-    """
-    Load any LeRobot checkpoint from HuggingFace Hub.
-
-    Good starting checkpoints for a 6-DOF tabletop arm:
-        lerobot/act_koch_real      – ACT on Koch v1.1 (closest hardware match)
-        lerobot/act_aloha_sim_transfer_cube_human
-
-    pip install lerobot
-    """
-    def __init__(self, repo_id: str, device: str = "cpu"):
-        from lerobot.common.policies.factory import make_policy_from_pretrained
-        import torch
-        self.device = device
-        self.policy = make_policy_from_pretrained(repo_id)
-        self.policy = self.policy.to(device)
-        self.policy.eval()
-        print(f"[PretrainedPolicy] Loaded: {repo_id} on {device}")
-
-    def predict(self, obs: dict) -> np.ndarray:
-        import torch
-        image = torch.from_numpy(obs["image"]).float().unsqueeze(0).to(self.device)
-        state = torch.from_numpy(obs["state"]).float().unsqueeze(0).to(self.device)
-        with torch.no_grad():
-            action = self.policy.select_action({
-                "observation.image": image,
-                "observation.state": state,
-            })
-        a = action.cpu().numpy()
-        # Handle chunked policies that return (1, T, 6) or (1, 6)
-        if a.ndim == 3:
-            a = a[0, 0]
-        elif a.ndim == 2:
-            a = a[0]
-        return a.flatten()[:NUM_JOINTS].astype(np.float32)
-
-
-class LocalACTPolicy:
-    """
-    Fine-tuned ACT checkpoint produced by train_act.py.
-
-    Checkpoint layout (output of train_act.py):
-        <checkpoint_dir>/model.pt      ← policy state dict
-        <checkpoint_dir>/config.json   ← ACTConfig constructor kwargs
-        <checkpoint_dir>/stats.json    ← dataset normalisation stats
-    """
-    def __init__(self, checkpoint_path: str, device: str = "cpu"):
-        import json
-        import torch
-        from lerobot.common.policies.act.configuration_act import ACTConfig
-        from lerobot.common.policies.act.modeling_act import ACTPolicy
-
-        ckpt_dir = Path(checkpoint_path)
-
-        with open(ckpt_dir / "config.json") as fh:
-            config_dict = json.load(fh)
-
-        with open(ckpt_dir / "stats.json") as fh:
-            stats_raw = json.load(fh)
-        dataset_stats = {
-            feat: {k: torch.tensor(v) for k, v in vals.items()}
-            for feat, vals in stats_raw.items()
-        }
-
-        config = ACTConfig(**config_dict)
-        self.policy = ACTPolicy(config, dataset_stats=dataset_stats)
-        self.policy.load_state_dict(
-            torch.load(ckpt_dir / "model.pt", map_location=device,
-                       weights_only=True)
-        )
-        self.policy = self.policy.to(device)
-        self.policy.eval()
-        self.device = device
-        print(f"[ACTPolicy] Loaded from {checkpoint_path}")
-
-    def predict(self, obs: dict) -> np.ndarray:
-        import torch
-        # obs["image"] is (C, H, W) float32 [0,1].
-        # Policy expects (batch=1, n_obs_steps=1, C, H, W).
-        image = torch.from_numpy(obs["image"]).float()
-        image = image.unsqueeze(0).unsqueeze(0).to(self.device)   # (1, 1, C, H, W)
-        state = torch.from_numpy(obs["state"]).float()
-        state = state.unsqueeze(0).unsqueeze(0).to(self.device)   # (1, 1, 6)
-        with torch.no_grad():
-            action = self.policy.select_action({
-                "observation.images.top": image,
-                "observation.state":      state,
-            })
-        a = action.cpu().numpy()
-        # select_action may return (1, chunk, 6), (1, 6), or (6,)
-        if a.ndim == 3:
-            a = a[0, 0]
-        elif a.ndim == 2:
-            a = a[0]
-        return a.flatten()[:NUM_JOINTS].astype(np.float32)
-
-
-class LocalDiffusionPolicy:
-    """Fine-tuned Diffusion Policy checkpoint stored on disk."""
-    def __init__(self, checkpoint_path: str, device: str = "cpu"):
-        from lerobot.common.policies.diffusion.modeling_diffusion import DiffusionPolicy
-        from lerobot.common.utils.utils import init_hydra_config
-        import torch
-        cfg = init_hydra_config(checkpoint_path)
-        self.policy = DiffusionPolicy(cfg.policy)
-        self.policy.load_state_dict(
-            torch.load(f"{checkpoint_path}/model.pt", map_location=device)
-        )
-        self.policy.eval()
-        self.device = device
-        print(f"[DiffusionPolicy] Loaded from {checkpoint_path}")
-
-    def predict(self, obs: dict) -> np.ndarray:
-        import torch
-        image = torch.from_numpy(obs["image"]).float().unsqueeze(0).to(self.device)
-        state = torch.from_numpy(obs["state"]).float().unsqueeze(0).to(self.device)
-        with torch.no_grad():
-            action = self.policy.select_action({
-                "observation.image": image,
-                "observation.state": state,
-            })
-        a = action.cpu().numpy()
-        if a.ndim == 3:
-            a = a[0, 0]
-        elif a.ndim == 2:
-            a = a[0]
-        return a.flatten()[:NUM_JOINTS].astype(np.float32)
-
-
 # ── Main server ───────────────────────────────────────────────────────────────
 
 class LeRobotInferenceServer:
@@ -365,8 +160,6 @@ class LeRobotInferenceServer:
         print(f"Loading policy: {args.policy_type} …")
         if args.policy_type == "mock":
             self.policy = MockPolicy()
-        elif args.policy_type == "pretrained":
-            self.policy = PretrainedLeRobotPolicy(args.pretrained_repo, args.device)
         elif args.policy_type == "act":
             self.policy = LocalACTPolicy(args.checkpoint_path, args.device)
         elif args.policy_type == "diffusion":
@@ -394,41 +187,41 @@ class LeRobotInferenceServer:
         # ── Publisher: /policy/action → robot_controller.py (Jetson) ───────
         # robot_controller safety-checks the command then forwards to arm_driver.
         self._cmd_pub = roslibpy.Topic(
-            self.client, POLICY_ACTION_TOPIC, ACTION_MSG_TYPE
+            self.client, constants.POLICY_ACTION_TOPIC, constants.ACTION_MSG_TYPE
         )
         self._cmd_pub.advertise()
 
         # Episode control publisher ("start" / "stop" / "home" / "reset")
         self._ctrl_pub = roslibpy.Topic(
-            self.client, ROBOT_CMD_TOPIC, STRING_TYPE
+            self.client, constants.ROBOT_CMD_TOPIC, constants.STRING_TYPE
         )
         self._ctrl_pub.advertise()
 
         # ── Subscribers ───────────────────────────────────────────────────
         self._image_sub = roslibpy.Topic(
-            self.client, IMAGE_TOPIC, IMAGE_TYPE
+            self.client, constants.IMAGE_TOPIC, constants.IMAGE_TYPE
         )
         self._image_sub.subscribe(self._cb_image)
 
         self._joint_sub = roslibpy.Topic(
-            self.client, JOINT_STATE_TOPIC, JOINT_STATE_TYPE
+            self.client, constants.JOINT_STATE_TOPIC, constants.JOINT_STATE_TYPE
         )
         self._joint_sub.subscribe(self._cb_joint_states)
 
         # /robot/ready — True when arm has settled; used to gate inference rate
         self._robot_ready = True   # optimistic default (works without controller)
         self._ready_sub = roslibpy.Topic(
-            self.client, ROBOT_READY_TOPIC, BOOL_TYPE
+            self.client, constants.ROBOT_READY_TOPIC, constants.BOOL_TYPE
         )
         self._ready_sub.subscribe(self._cb_robot_ready)
 
         # Give rosbridge time to register subscriptions on the Jetson side
         print("Waiting for rosbridge subscription handshake…")
         time.sleep(2.0)
-        print(f"Subscribed to {IMAGE_TOPIC} and {JOINT_STATE_TOPIC}")
-        print(f"Publishing to  {POLICY_ACTION_TOPIC}")
+        print(f"Subscribed to {constants.IMAGE_TOPIC} and {constants.JOINT_STATE_TOPIC}")
+        print(f"Publishing to  {constants.POLICY_ACTION_TOPIC}")
         print(f"Running at {self.inference_hz} Hz — move_time={self.move_time_ms} ms")
-        print(f"Episode control: publish to {ROBOT_CMD_TOPIC} ('start'/'stop'/'home'/'reset')")
+        print(f"Episode control: publish to {constants.ROBOT_CMD_TOPIC} ('start'/'stop'/'home'/'reset')")
         if args.policy_type == "mock":
             print("[MockPolicy] Arm will step through safe waypoints. "
                   "Keep hand near power switch.")
@@ -453,8 +246,8 @@ class LeRobotInferenceServer:
             names    = msg.get("name", [])
             positions = msg.get("position", [])
             name_to_idx = {n: i for i, n in enumerate(names)}
-            state = np.zeros(NUM_JOINTS, dtype=np.float32)
-            for k, jname in enumerate(JOINT_NAMES):
+            state = np.zeros(constants.NUM_JOINTS, dtype=np.float32)
+            for k, jname in enumerate(constants.JOINT_NAMES):
                 if jname in name_to_idx:
                     state[k] = float(positions[name_to_idx[jname]])
             with self._lock:
@@ -613,7 +406,6 @@ if __name__ == "__main__":
     # Auto-detect MPS (Apple Silicon) if device not explicitly set
     if args.device == "cpu":
         try:
-            import torch
             if torch.backends.mps.is_available():
                 args.device = "mps"
                 print("[Server] Apple MPS detected — using GPU acceleration.")

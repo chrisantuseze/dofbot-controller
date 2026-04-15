@@ -159,10 +159,10 @@ python lerobot_inference_server.py \
     --jetson_ip 192.168.0.8
 
 ## Lab Computer — Step 3: your fine-tuned checkpoint
-python lerobot_inference_server.py \
+python3 inference/lerobot_inference_server.py \
     --policy_type act \
-    --checkpoint_path /path/to/your/checkpoint \
-    --inference_hz 10 \
+    --checkpoint_path training/runs/act_001/checkpoints/step_005000 \
+    --inference_hz 5 \
     --move_time_ms 200 \
     --jetson_ip 192.168.0.8
 
@@ -171,12 +171,12 @@ python lerobot_inference_server.py \
 ## Finetuning
 
 # Quick pipeline test (overfits 2 episodes — expected):
-python train_act.py \
-    --dataset_dir dofbot_pro_ws/src/dofbot_policy_bridge/dofbot_dataset \
-    --num_steps 5000 --save_freq 1000
+python training/train_act.py \
+  --dataset_dir dofbot_pro_ws/src/dofbot_policy_bridge/dofbot_dataset \
+  --num_steps 5000 --save_freq 1000
 
 # Full training run (after collecting 50+ demos):
-python train_act.py \
+python training/train_act.py \
     --dataset_dir dofbot_pro_ws/src/dofbot_policy_bridge/dofbot_dataset \
     --output_dir runs/act_001 --num_steps 50000 --device cuda
 
