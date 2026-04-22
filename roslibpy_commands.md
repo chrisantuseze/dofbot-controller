@@ -7,7 +7,9 @@ source dofbot_pro_ws/devel/setup.bash
 clear
 
 # #################################################################################################
-## Keyboard Data Collection (pick-and-place demonstrations)
+# ################### Keyboard Data Collection (pick-and-place demonstrations) ####################
+# #################################################################################################
+
 # Terminal #1 — ROS core
 roscore
 
@@ -43,12 +45,15 @@ rosrun dofbot_policy_bridge keyboard_teleop.py
 #     ]  stop + save  →  writes HDF5 to output_dir
 #     \  discard + home
 #     z  home only
+#     x  place position
 #     p  print current joint angles
 #     q  quit
 
 
 # #################################################################################################
-## Gamepad Data Collection (pick-and-place demonstrations)
+# ############## Gamepad Data Collection (pick-and-place demonstrations) ##########################
+# #################################################################################################
+
 # Prereq: plug in the USB gamepad controller.
 # Install pygame if not already installed:
 pip install pygame
@@ -114,7 +119,8 @@ roslaunch dofbot_policy_bridge data_collection.launch \
 #   Then override btn_gripper_close if the gripper-close button differs:
 #     roslaunch dofbot_policy_bridge data_collection.launch btn_gripper_close:=6
 
-
+# #################################################################################################
+# ########################### INFERENCE ######################
 # #################################################################################################
 ## LeRobot / Open Policy Models (lerobot_inference_server.py)
 # Jetson terminals 1–5 are the same as above (roscore, rosbridge, arm_driver, camera)
@@ -149,15 +155,6 @@ python lerobot_inference_server.py \
     --move_time_ms 2000 \
     --jetson_ip 192.168.0.8
 
-## Lab Computer — Step 2: pretrained HuggingFace model (no training needed)
-pip install lerobot
-python lerobot_inference_server.py \
-    --policy_type pretrained \
-    --pretrained_repo lerobot/act_koch_real \
-    --inference_hz 10 \
-    --move_time_ms 200 \
-    --jetson_ip 192.168.0.8
-
 ## Lab Computer — Step 3: your fine-tuned checkpoint
 python3 inference/lerobot_inference_server.py \
     --policy_type act \
@@ -168,7 +165,8 @@ python3 inference/lerobot_inference_server.py \
 
 
 # #################################################################################################
-## Finetuning
+# ####################### FINETUNING #######################
+# #################################################################################################
 
 # Quick pipeline test (overfits 2 episodes — expected):
 python training/train_act.py \

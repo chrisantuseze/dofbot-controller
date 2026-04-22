@@ -104,7 +104,9 @@ if __name__ == '__main__':
     import threading
     rospy.init_node('Arm_Driver_Node', anonymous=True)
     arm_driver = ArmDriver()
-    arm_driver.Arm.Arm_serial_servo_write6(90.0, 90.0, 90.0, 0.0, 90.0, 30.0, 3000)
+    # arm_driver.Arm.Arm_serial_servo_write6(90.0, 90.0, 90.0, 0.0, 90.0, 30.0, 3000) # old home
+    arm_driver.Arm.Arm_serial_servo_write6(90.0, 80.0, 45.0, 0.0, 90.0, 30.0, 3000) # new home for pickplace task
+    # arm_driver.Arm.Arm_serial_servo_write6(180.0, 45.0, 60.0, 45.0, 90.0, 30.0, 3000) # action for place after pick
     t = threading.Thread(target=arm_driver.pub_cur_joints, daemon=True)
     t.start()
     rospy.spin()

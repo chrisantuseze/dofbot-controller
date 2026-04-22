@@ -48,7 +48,8 @@ from dofbot_pro_info.msg import ArmJoint
 JOINT_SAFE_MIN = [  0.0,  30.0,   0.0,   0.0,   0.0,  30.0]
 JOINT_SAFE_MAX = [180.0, 270.0, 180.0, 270.0, 180.0, 180.0]
 
-JOINTS_HOME = [90.0, 90.0, 90.0, 0.0, 90.0, 30.0]
+JOINTS_HOME  = [90.0,  80.0, 45.0, 0.0, 90.0, 30.0]
+JOINTS_PLACE = [180.0, 45.0, 60.0, 45.0, 90.0, 30.0]
 NUM_JOINTS   = 6
 
 # Key → (joint_index, direction)  direction: +1 or -1
@@ -102,6 +103,7 @@ class KeyboardTeleop:
             "    ]  stop + save\n"
             "    \\  discard + home\n"
             "    z  home\n"
+            "    x  place position\n"
             "    p  print joints\n"
             "    q  quit\n"
         )
@@ -123,7 +125,23 @@ class KeyboardTeleop:
         with self._lock:
             self._joints = list(JOINTS_HOME)
         self._publish_joints(JOINTS_HOME, move_time_ms=3000)
+        
+    def _go_place(self):
+        rospy.loginfo("[KeyboardTeleop] → place position (gripper opens on arrival)")
+        transit_time_ms = 3000
+        with self._lock:
+            # Keep current gripper value during transit so it doesn't open mid-air
+            transit = list(JOINTS_PLACE)
+            transit[5] = self._joints[5]
+            self._joints = list(JOINTS_PLACE)
+        self._publish_joints(transit, move_time_ms=transit_time_ms)
 
+        def _open_gripper():
+            rospy.sleep(transit_time_ms / 1000.0)
+            rospy.loginfo("[KeyboardTeleop] → opening gripper")
+            self._publish_joints(JOINTS_PLACE, move_time_ms=500)
+
+        threading.Thread(target=_open_gripper, daemon=True).start()
     # ── Key reader thread ─────────────────────────────────────────────────────
 
     def _read_keys(self, old_settings):
@@ -155,6 +173,8 @@ class KeyboardTeleop:
                     self._go_home()
                 elif key == "z":
                     self._go_home()
+                elif key == "x":
+                    self._go_place()
                 elif key == "p":
                     with self._lock:
                         j = list(self._joints)
