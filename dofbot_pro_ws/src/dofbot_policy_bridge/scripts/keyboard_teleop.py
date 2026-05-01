@@ -18,7 +18,7 @@ Key layout
   Episode control (single press):
 
     [  — start recording
-    ]  — stop + save episode
+    ]  — stop + save episode (prompts for object label)
     \  — discard current episode + move arm to home
     z  — move arm to home (without discarding)
     p  — print current joint angles
@@ -48,6 +48,12 @@ from dofbot_pro_info.msg import ArmJoint
 JOINT_SAFE_MIN = [  0.0,  30.0,   0.0,   0.0,   0.0,  30.0]
 JOINT_SAFE_MAX = [180.0, 270.0, 180.0, 270.0, 180.0, 180.0]
 
+# Soft close limit for gripper during data collection.
+# Keeps demos below the mechanical hard-stop so recordings don't contain
+# stall-force frames that teach the policy to over-squeeze.
+# Override at launch: _gripper_soft_max_deg:=120
+GRIPPER_SOFT_MAX_DEG = 125.0
+
 JOINTS_HOME  = [90.0,  80.0, 45.0, 0.0, 90.0, 30.0]
 JOINTS_PLACE = [180.0, 45.0, 60.0, 45.0, 90.0, 30.0]
 NUM_JOINTS   = 6
@@ -70,6 +76,8 @@ class KeyboardTeleop:
         self.control_hz   = float(rospy.get_param("~control_hz",   30.0))
         self.speed_dps    = float(rospy.get_param("~speed_dps",    60.0))
         self.move_time_ms = int(rospy.get_param("~move_time_ms",   100))
+        self._gripper_soft_max = float(
+            rospy.get_param("~gripper_soft_max_deg", GRIPPER_SOFT_MAX_DEG))
 
         self._joints = list(JOINTS_HOME)
         self._lock   = threading.Lock()
@@ -100,7 +108,7 @@ class KeyboardTeleop:
             "\n"
             "  Episode:\n"
             "    [  start recording\n"
-            "    ]  stop + save\n"
+            "    ]  stop + save  (prompts for object label)\n"
             "    \\  discard + home\n"
             "    z  home\n"
             "    x  place position\n"
@@ -109,10 +117,12 @@ class KeyboardTeleop:
         )
 
     def _clamp_joints(self, joints):
-        return [
+        clamped = [
             float(max(JOINT_SAFE_MIN[i], min(JOINT_SAFE_MAX[i], joints[i])))
             for i in range(NUM_JOINTS)
         ]
+        clamped[5] = float(max(JOINT_SAFE_MIN[5], min(self._gripper_soft_max, clamped[5])))
+        return clamped
 
     def _publish_joints(self, joints, move_time_ms):
         msg          = ArmJoint()
@@ -165,6 +175,17 @@ class KeyboardTeleop:
                     rospy.loginfo("[KeyboardTeleop] ● START recording")
                     self._cmd_pub.publish(String(data="record"))
                 elif key == "]":
+                    # Temporarily restore normal terminal so we can prompt for the object label.
+                    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+                    try:
+                        sys.stdout.write("Object label (Enter to skip): ")
+                        sys.stdout.flush()
+                        label = sys.stdin.readline().strip()
+                    finally:
+                        tty.setcbreak(sys.stdin.fileno())
+                    if label:
+                        self._cmd_pub.publish(String(data=f"object: {label}"))
+                        rospy.loginfo("[KeyboardTeleop] object label: '%s'", label)
                     rospy.loginfo("[KeyboardTeleop] ■ STOP + SAVE")
                     self._cmd_pub.publish(String(data="stop"))
                 elif key == "\\":

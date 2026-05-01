@@ -150,19 +150,37 @@ def compute_stats(dataset: DofBotDataset) -> dict[str, dict[str, torch.Tensor]]:
     and image features.  Used to initialise the policy's normalisation layers.
 
     Image stats are shaped (3, 1, 1) for channel-wise broadcasting.
+    Image stats are computed incrementally per-episode to avoid allocating a
+    second full copy of all images (which would double peak RAM usage).
     """
     all_states  = np.concatenate([ep["states"]  for ep in dataset.episodes], axis=0)
     all_actions = np.concatenate([ep["actions"] for ep in dataset.episodes], axis=0)
-    # Images are already (T, 3, H, W) float32
-    all_imgs = np.concatenate([ep["images"] for ep in dataset.episodes], axis=0)
-    imgs_flat = all_imgs.reshape(all_imgs.shape[0], 3, -1)   # (N, 3, H*W)
+
+    # Images: compute channel-wise stats incrementally to avoid a full copy.
+    # Uses the parallel-sum formula: mean = sum(x) / N, var = sum(x²)/N - mean²
+    n_pixels      = 0
+    ch_sum        = np.zeros(3, dtype=np.float64)
+    ch_sq_sum     = np.zeros(3, dtype=np.float64)
+    img_min_ch    = np.full(3,  np.inf, dtype=np.float64)
+    img_max_ch    = np.full(3, -np.inf, dtype=np.float64)
+
+    for ep in dataset.episodes:
+        imgs = ep["images"]                          # (T, 3, H, W) float32
+        T, C, H, W = imgs.shape
+        flat = imgs.reshape(T, 3, -1).astype(np.float64)  # (T, 3, H*W)
+        n_pixels  += T * H * W
+        ch_sum    += flat.sum(axis=(0, 2))
+        ch_sq_sum += (flat ** 2).sum(axis=(0, 2))
+        img_min_ch = np.minimum(img_min_ch, flat.min(axis=(0, 2)))
+        img_max_ch = np.maximum(img_max_ch, flat.max(axis=(0, 2)))
+
+    img_mean = (ch_sum / n_pixels).reshape(3, 1, 1).astype(np.float32)
+    img_var  = ch_sq_sum / n_pixels - (ch_sum / n_pixels) ** 2
+    img_std  = np.sqrt(np.maximum(img_var, 0.0)).reshape(3, 1, 1).astype(np.float32)
+    img_min  = img_min_ch.reshape(3, 1, 1).astype(np.float32)
+    img_max  = img_max_ch.reshape(3, 1, 1).astype(np.float32)
 
     def t(arr): return torch.from_numpy(arr.astype(np.float32))
-
-    img_mean = imgs_flat.mean(axis=(0, 2)).reshape(3, 1, 1)
-    img_std  = imgs_flat.std(axis=(0, 2)).reshape(3, 1, 1)
-    img_min  = imgs_flat.min(axis=(0, 2)).reshape(3, 1, 1)
-    img_max  = imgs_flat.max(axis=(0, 2)).reshape(3, 1, 1)
 
     return {
         IMAGE_KEY: {

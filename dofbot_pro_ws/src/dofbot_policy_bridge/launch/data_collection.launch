@@ -28,6 +28,9 @@
   <arg name="record_hz"          default="30" />
   <arg name="image_height"       default="224" />
   <arg name="image_width"        default="224" />
+  <arg name="default_task"       default="pick and place object to side area" />
+  <arg name="task_template"      default="pick and place {object} to side area" />
+  <arg name="object_label"       default="" />
 
   <arg name="joy_index"     default="0" />
   <arg name="speed_dps"     default="60" />
@@ -45,6 +48,9 @@
     <param name="record_hz"     value="$(arg record_hz)" />
     <param name="image_height"  value="$(arg image_height)" />
     <param name="image_width"   value="$(arg image_width)" />
+    <param name="default_task"  value="$(arg default_task)" />
+    <param name="task_template" value="$(arg task_template)" />
+    <param name="object_label"  value="$(arg object_label)" />
   </node>
 
   <!-- Gamepad teleop: reads USB controller, drives joints, sends /robot/cmd -->

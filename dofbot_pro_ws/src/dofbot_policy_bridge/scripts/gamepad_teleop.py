@@ -50,6 +50,10 @@ from dofbot_pro_info.msg import ArmJoint
 JOINT_SAFE_MIN = [  0.0,  30.0,   0.0,   0.0,   0.0,  30.0]
 JOINT_SAFE_MAX = [180.0, 270.0, 180.0, 270.0, 180.0, 180.0]
 
+# Soft close limit for gripper during data collection.
+# Override at launch: _gripper_soft_max_deg:=120
+GRIPPER_SOFT_MAX_DEG = 125.0
+
 # Home position (degrees) — matches arm_driver.py initialisation
 JOINTS_HOME = [90.0, 90.0, 90.0, 0.0, 90.0, 30.0]
 
@@ -77,6 +81,8 @@ class GamepadTeleop:
         self.btn_j4_pos        = int(rospy.get_param("~btn_j4_pos",        3))
         self.btn_j4_neg        = int(rospy.get_param("~btn_j4_neg",       -1))
         self.btn_gripper_close = int(rospy.get_param("~btn_gripper_close", 8))
+        self._gripper_soft_max = float(
+            rospy.get_param("~gripper_soft_max_deg", GRIPPER_SOFT_MAX_DEG))
 
         # Current joint targets (degrees), initialised to home
         self._joints = list(JOINTS_HOME)
@@ -153,10 +159,12 @@ class GamepadTeleop:
         return cur and not prev
 
     def _clamp_joints(self, joints: list) -> list:
-        return [
+        clamped = [
             float(max(JOINT_SAFE_MIN[i], min(JOINT_SAFE_MAX[i], joints[i])))
             for i in range(NUM_JOINTS)
         ]
+        clamped[5] = float(max(JOINT_SAFE_MIN[5], min(self._gripper_soft_max, clamped[5])))
+        return clamped
 
     def _publish_joints(self, joints: list, move_time_ms: int) -> None:
         msg          = ArmJoint()

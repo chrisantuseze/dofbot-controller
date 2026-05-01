@@ -25,6 +25,8 @@ Usage:
         "record"  - start recording  (NOT "start", which enables the arm)
         "stop"    - stop and save
         "discard" - discard current episode
+        "object: red cube" - set object label for upcoming episode(s)
+        "task: pick and place red cube to side area" - set full task text
 
 Key topics listened to:
     /camera/color/image_raw  (sensor_msgs/Image)
@@ -32,10 +34,10 @@ Key topics listened to:
     /ArmAngleUpdate          (ArmJoint) -- used as the "action" label
 """
 
+import json
 import math
 import os
 import threading
-import time
 
 import cv2
 import h5py
@@ -51,7 +53,6 @@ from dofbot_pro_info.msg import ArmJoint
 # Constants (match policy_bridge.py)
 # ---------------------------------------------------------------------------
 NUM_JOINTS = 6
-RAD2DEG = 180.0 / math.pi
 JOINT_NAMES = ["Arm1_Joint", "Arm2_Joint", "Arm3_Joint",
                "Arm4_Joint", "Arm5_Joint", "grip_joint"]
 
@@ -61,16 +62,29 @@ class DataCollectorNode:
         rospy.init_node("data_collector_node", anonymous=False)
 
         # Parameters
-        self.output_dir    = rospy.get_param("~output_dir", "/tmp/dofbot_dataset")
-        self.episode_idx   = int(rospy.get_param("~episode_index", 0))
-        self.record_hz     = float(rospy.get_param("~record_hz", 15.0))
-        self.img_h         = int(rospy.get_param("~image_height", 224))
-        self.img_w         = int(rospy.get_param("~image_width", 224))
+        self.output_dir = rospy.get_param("~output_dir", "/tmp/dofbot_dataset")
+        self.episode_idx = int(rospy.get_param("~episode_index", 0))
+        self.record_hz = float(rospy.get_param("~record_hz", 15.0))
+        self.img_h = int(rospy.get_param("~image_height", 224))
+        self.img_w = int(rospy.get_param("~image_width", 224))
 
-        os.makedirs(self.output_dir, exist_ok=True, )
+        # Task metadata behavior
+        self.default_task = str(
+            rospy.get_param("~default_task", "pick and place object to side area")
+        ).strip()
+        self.task_template = str(
+            rospy.get_param("~task_template", "pick and place {object} to side area")
+        ).strip()
+        self.object_label = str(rospy.get_param("~object_label", "")).strip()
+        self.manual_task = str(rospy.get_param("~task", "")).strip()
+        self.task_map_filename = str(
+            rospy.get_param("~episode_task_map_filename", "episode_task_map.json")
+        ).strip()
 
-        self._bridge     = CvBridge()
-        self._lock       = threading.Lock()
+        os.makedirs(self.output_dir, exist_ok=True)
+
+        self._bridge = CvBridge()
+        self._lock = threading.Lock()
 
         # Latest sensor readings
         self._latest_image: np.ndarray | None = None
@@ -78,8 +92,8 @@ class DataCollectorNode:
         self._latest_action: np.ndarray | None = None  # from /ArmAngleUpdate
 
         # Episode buffers
-        self._images:  list[np.ndarray] = []  # (H, W, 3) uint8 RGB
-        self._states:  list[np.ndarray] = []  # (6,) float32 radians
+        self._images: list[np.ndarray] = []  # (H, W, 3) uint8 RGB
+        self._states: list[np.ndarray] = []  # (6,) float32 radians
         self._actions: list[np.ndarray] = []  # (6,) float32 radians
 
         # Control flags
@@ -98,8 +112,8 @@ class DataCollectorNode:
 
         rospy.loginfo("[DataCollector] Ready. Episode index=%d, output=%s",
                       self.episode_idx, self.output_dir)
-        rospy.loginfo("[DataCollector] Call start_recording() / stop_recording() "
-                      "or use keyboard: r=record, s=save, q=quit")
+        rospy.loginfo("[DataCollector] Current metadata defaults: object='%s' | task='%s'",
+                      self.object_label, self._current_task_text())
 
     # ------------------------------------------------------------------
     # Subscribers
@@ -109,7 +123,7 @@ class DataCollectorNode:
         try:
             bgr = self._bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
             bgr = cv2.resize(bgr, (self.img_w, self.img_h))
-            bgr = cv2.flip(bgr, 0)  # flip vertically (top ↔ bottom)
+            bgr = cv2.flip(bgr, 0)  # flip vertically (top <-> bottom)
             rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
             with self._lock:
                 self._latest_image = rgb
@@ -131,9 +145,12 @@ class DataCollectorNode:
         Convert to radians for storage (policy-friendly format).
         """
         if len(msg.joints) == NUM_JOINTS:
-            # Convert degrees to radians (same convention as joint_states)
             joints_deg = np.array(msg.joints[:NUM_JOINTS], dtype=np.float32)
             joints_rad = (joints_deg - 90.0) * (math.pi / 180.0)
+            # Keep gripper action in the same convention as /joint_states:
+            # servo deg [30, 180] -> gripper-state deg [0, 90] -> offset-from-90 in rad.
+            grip_state_deg = np.interp(joints_deg[5], [30.0, 180.0], [0.0, 90.0])
+            joints_rad[5] = (grip_state_deg - 90.0) * (math.pi / 180.0)
             with self._lock:
                 self._latest_action = joints_rad
 
@@ -142,21 +159,57 @@ class DataCollectorNode:
     # ------------------------------------------------------------------
 
     def _cb_cmd(self, msg: String):
-        """Handle recording commands from gamepad_teleop or any publisher.
+        """Handle recording and metadata commands from /robot/cmd."""
+        cmd_raw = msg.data.strip()
+        cmd = cmd_raw.lower()
 
-        NOTE: "start" is intentionally NOT handled here — that command is
-        used to enable the arm driver and is published as a latched message
-        that would otherwise auto-start recording on node startup.
-        Send "record" to begin recording instead.
-        """
-        cmd = msg.data.strip().lower()
+        if cmd.startswith("object:"):
+            label = cmd_raw.split(":", 1)[1].strip()
+            self.object_label = label
+            # Clear manual task so template/default takes effect for new object labels.
+            self.manual_task = ""
+            rospy.loginfo("[DataCollector] object_label set to '%s'", self.object_label)
+            return
+
+        if cmd.startswith("task:"):
+            task_text = cmd_raw.split(":", 1)[1].strip()
+            self.manual_task = task_text
+            rospy.loginfo("[DataCollector] task set to '%s'", self.manual_task)
+            return
+
         if cmd == "record":
             self.start_recording()
         elif cmd in ("stop", "save"):
             self.stop_recording()
         elif cmd == "discard":
             self.discard_episode()
-        # "home" is a robot motion command — nothing to do for the recorder
+        # "home" and "start" are robot motion/control commands.
+
+    def _current_task_text(self) -> str:
+        if self.manual_task:
+            return self.manual_task
+        if self.object_label:
+            if "{object}" in self.task_template:
+                return self.task_template.format(object=self.object_label)
+            return f"{self.task_template} {self.object_label}".strip()
+        return self.default_task
+
+    def _update_episode_task_map(self, episode_index: int, task_text: str) -> None:
+        task_map_path = os.path.join(self.output_dir, self.task_map_filename)
+        mapping = {}
+        if os.path.isfile(task_map_path):
+            try:
+                with open(task_map_path, "r") as fh:
+                    loaded = json.load(fh)
+                if isinstance(loaded, dict):
+                    mapping = loaded
+            except Exception as exc:
+                rospy.logwarn("[DataCollector] Could not parse %s (%s). Rewriting.",
+                              task_map_path, exc)
+
+        mapping[str(episode_index)] = task_text
+        with open(task_map_path, "w") as fh:
+            json.dump(mapping, fh, indent=2)
 
     def start_recording(self):
         with self._lock:
@@ -165,8 +218,8 @@ class DataCollectorNode:
             self._actions.clear()
             self._frame_count = 0
             self._recording = True
-        rospy.loginfo("[DataCollector] Recording started for episode %d.",
-                      self.episode_idx)
+        rospy.loginfo("[DataCollector] Recording started for episode %d | object='%s' | task='%s'",
+                      self.episode_idx, self.object_label, self._current_task_text())
 
     def discard_episode(self):
         """Abort recording and discard all buffered frames without saving."""
@@ -176,9 +229,8 @@ class DataCollectorNode:
             self._states.clear()
             self._actions.clear()
             self._frame_count = 0
-        rospy.logwarn(
-            "[DataCollector] Episode discarded. Next episode index: %d",
-            self.episode_idx)
+        rospy.logwarn("[DataCollector] Episode discarded. Next episode index: %d",
+                      self.episode_idx)
 
     def stop_recording(self) -> str:
         with self._lock:
@@ -190,7 +242,7 @@ class DataCollectorNode:
             return ""
 
         path = self._save_episode()
-        rospy.loginfo("[DataCollector] Saved %d frames → %s", n, path)
+        rospy.loginfo("[DataCollector] Saved %d frames -> %s", n, path)
         self.episode_idx += 1
         return path
 
@@ -213,7 +265,7 @@ class DataCollectorNode:
             self._frame_count += 1
 
     # ------------------------------------------------------------------
-    # HDF5 serialisation (LeRobot-compatible)
+    # HDF5 serialization (LeRobot-compatible)
     # ------------------------------------------------------------------
 
     def _save_episode(self) -> str:
@@ -221,10 +273,13 @@ class DataCollectorNode:
             self.output_dir,
             f"episode_{self.episode_idx:06d}.hdf5"
         )
+        episode_task = self._current_task_text()
+        episode_object = self.object_label
+
         with self._lock:
-            images  = np.stack(self._images,  axis=0)   # (T, H, W, 3)
-            states  = np.stack(self._states,  axis=0)   # (T, 6)
-            actions = np.stack(self._actions, axis=0)   # (T, 6)
+            images = np.stack(self._images, axis=0)   # (T, H, W, 3)
+            states = np.stack(self._states, axis=0)   # (T, 6)
+            actions = np.stack(self._actions, axis=0) # (T, 6)
 
         with h5py.File(fname, "w") as f:
             # LeRobot expected keys
@@ -235,11 +290,15 @@ class DataCollectorNode:
             f.create_dataset("action",
                              data=actions, compression="lzf")
             # Metadata
-            f.attrs["fps"]           = self.record_hz
+            f.attrs["fps"] = self.record_hz
             f.attrs["episode_index"] = self.episode_idx
-            f.attrs["num_frames"]    = len(images)
-            f.attrs["robot"]         = "dofbot_pro"
-            f.attrs["joint_names"]   = JOINT_NAMES
+            f.attrs["num_frames"] = len(images)
+            f.attrs["robot"] = "dofbot_pro"
+            f.attrs["joint_names"] = JOINT_NAMES
+            f.attrs["task"] = episode_task
+            f.attrs["object_label"] = episode_object
+
+        self._update_episode_task_map(self.episode_idx, episode_task)
         return fname
 
     # ------------------------------------------------------------------
@@ -247,8 +306,8 @@ class DataCollectorNode:
     # ------------------------------------------------------------------
 
     def run(self):
-        import sys
         import select
+        import sys
         import termios
         import tty
 
@@ -259,12 +318,12 @@ class DataCollectorNode:
             tty.setcbreak(sys.stdin.fileno())
         except Exception:
             rospy.logwarn("[DataCollector] Keyboard control unavailable "
-                          "(non-interactive terminal). Use ROS service or "
-                          "call start_recording()/stop_recording() directly.")
+                          "(non-interactive terminal). Use /robot/cmd commands.")
             old_settings = None
 
         rate = rospy.Rate(self.record_hz)
-        rospy.loginfo("[DataCollector] Keys: r=record, s=stop+save, q=quit  |  topic /robot/cmd: \"record\"=start, \"stop\"=save, \"discard\"=discard")
+        rospy.loginfo("[DataCollector] Keys: r=record, s=stop+save, q=quit | /robot/cmd: 'record'/'stop'/'discard'")
+        rospy.loginfo("[DataCollector] Metadata on /robot/cmd: 'object: <label>' | 'task: <text>'")
 
         try:
             while not rospy.is_shutdown():
@@ -285,7 +344,7 @@ class DataCollectorNode:
         finally:
             if old_settings is not None:
                 termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-            rospy.loginfo("[DataCollector] Exiting. Episodes saved: %d",
+            rospy.loginfo("[DataCollector] Exiting. Next episode index: %d",
                           self.episode_idx)
 
 

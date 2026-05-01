@@ -75,6 +75,10 @@ from dofbot_pro_info.msg import ArmJoint
 JOINT_SAFE_MIN = [  0.0,  30.0,   0.0,   0.0,   0.0,  30.0]
 JOINT_SAFE_MAX = [180.0, 270.0, 180.0, 270.0, 180.0, 180.0]
 
+# Additional software limit for gripper close angle (joint index 5, servo degrees).
+# Keep below mechanical hard-stop. Tune per object size.
+DEFAULT_GRIPPER_SOFT_MAX_DEG = 125.0
+
 # Home position (degrees) — matches arm_driver.py initialisation
 JOINTS_HOME = [90.0, 90.0, 90.0, 0.0, 90.0, 30.0]
 
@@ -108,6 +112,10 @@ class RobotController:
         self.step_move_time    = int(
             rospy.get_param("~step_move_time_ms", 200))
         self.autostart         = rospy.get_param("~autostart", False)
+        self.gripper_soft_max_deg = float(
+            rospy.get_param("~gripper_soft_max_deg", DEFAULT_GRIPPER_SOFT_MAX_DEG))
+        self.gripper_soft_max_deg = float(np.clip(
+            self.gripper_soft_max_deg, JOINT_SAFE_MIN[5], JOINT_SAFE_MAX[5]))
 
         # State
         self._lock              = threading.Lock()
@@ -134,6 +142,8 @@ class RobotController:
             "/robot/cmd", String, self._cb_cmd, queue_size=10)
 
         rospy.loginfo("[RobotController] Initialised. autostart=%s", self.autostart)
+        rospy.loginfo("[RobotController] Gripper soft-close max=%.1f deg",
+                  self.gripper_soft_max_deg)
         self._publish_status()
 
         if self.autostart:
@@ -281,10 +291,13 @@ class RobotController:
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _clamp_joints(self, joints: list) -> list:
-        return [
+        clamped = [
             float(np.clip(j, JOINT_SAFE_MIN[i], JOINT_SAFE_MAX[i]))
             for i, j in enumerate(joints[:NUM_JOINTS])
         ]
+        # Apply extra soft clamp only to gripper close direction.
+        clamped[5] = float(np.clip(clamped[5], JOINT_SAFE_MIN[5], self.gripper_soft_max_deg))
+        return clamped
 
     def _is_settled(self) -> bool:
         with self._lock:

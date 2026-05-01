@@ -306,7 +306,7 @@ def train(args: argparse.Namespace) -> None:
                 writer.add_scalar(f"train/{k}", v, step)
         writer.add_scalar("train/lr", scheduler.get_last_lr()[0], step)
 
-        if step % 50 == 0 or step == 1:
+        if step % args.print_freq == 0 or step == 1:
             elapsed = time.time() - t_start
             lr_now  = scheduler.get_last_lr()[0]
             suffix  = "  [" + "  ".join(f"{k}={v:.4f}" for k, v in loss_info.items()
@@ -352,9 +352,9 @@ def parse_args() -> argparse.Namespace:
 
     # Model
     parser.add_argument(
-        "--chunk_size", default=20, type=int,
+        "--chunk_size", default=10, type=int,
         help="Number of future actions to predict per inference step. "
-             "At 5 fps, chunk_size=20 → 4-second action horizon.",
+             "At 5 fps, chunk_size=10 → 2-second action horizon.",
     )
     parser.add_argument(
         "--image_size", default=224, type=int,
@@ -372,6 +372,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--save_freq", default=2000, type=int,
         help="Save a checkpoint every N gradient steps.",
+    )
+    parser.add_argument(
+        "--print_freq", default=200, type=int,
+        help="Print training progress every N steps (loss, elapsed time, etc.)",
     )
 
     # System

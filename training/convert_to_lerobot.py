@@ -37,6 +37,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Optional
 
 import h5py
 import numpy as np
@@ -196,10 +197,71 @@ def compute_dataset_stats(
 
 # ── Main conversion ────────────────────────────────────────────────────────────
 
-def convert(input_dir: Path, output_dir: Path, task: str) -> None:
+def load_episode_task_map(task_map_path: Optional[Path]) -> dict[int, str]:
+    """
+    Load optional per-episode task strings from JSON.
+
+    Accepted JSON formats:
+      1) {"0": "pick and place red cube", "1": "pick and place blue cylinder"}
+      2) [{"episode_index": 0, "task": "pick and place red cube"}, ...]
+    """
+    if task_map_path is None:
+        return {}
+
+    with open(task_map_path) as fh:
+        raw = json.load(fh)
+
+    task_map: dict[int, str] = {}
+    if isinstance(raw, dict):
+        for k, v in raw.items():
+            ep_idx = int(k)
+            task = str(v).strip()
+            if not task:
+                raise ValueError(f"Empty task string for episode {ep_idx} in {task_map_path}")
+            task_map[ep_idx] = task
+    elif isinstance(raw, list):
+        for item in raw:
+            if not isinstance(item, dict) or "episode_index" not in item or "task" not in item:
+                raise ValueError(
+                    f"Invalid list entry in {task_map_path}. "
+                    "Expected {'episode_index': int, 'task': str}."
+                )
+            ep_idx = int(item["episode_index"])
+            task = str(item["task"]).strip()
+            if not task:
+                raise ValueError(f"Empty task string for episode {ep_idx} in {task_map_path}")
+            task_map[ep_idx] = task
+    else:
+        raise ValueError(
+            f"Unsupported JSON structure in {task_map_path}. "
+            "Use either an object map or a list of entries."
+        )
+
+    return task_map
+
+
+def convert(input_dir: Path, output_dir: Path, task: str, task_map_path: Optional[Path] = None) -> None:
     episode_paths = find_hdf5_episodes(input_dir)
     n_episodes = len(episode_paths)
     print(f"Found {n_episodes} episode(s) in {input_dir}")
+
+    if task_map_path is None:
+        auto_map = input_dir / "episode_task_map.json"
+        if auto_map.exists():
+            task_map_path = auto_map
+            print(f"Using task map: {task_map_path}")
+
+    episode_task_map = load_episode_task_map(task_map_path)
+
+    # Reserve index 0 for the default task to keep metadata stable.
+    task_to_index: dict[str, int] = {task: 0}
+    index_to_task: list[str] = [task]
+
+    def get_task_index(task_str: str) -> int:
+        if task_str not in task_to_index:
+            task_to_index[task_str] = len(index_to_task)
+            index_to_task.append(task_str)
+        return task_to_index[task_str]
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -216,6 +278,10 @@ def convert(input_dir: Path, output_dir: Path, task: str) -> None:
             ep_idx   = int(f.attrs["episode_index"])
             fps      = float(f.attrs["fps"])
             n_frames = int(f.attrs["num_frames"])
+            ep_task_attr = f.attrs.get("task", None)
+            if isinstance(ep_task_attr, bytes):
+                ep_task_attr = ep_task_attr.decode("utf-8")
+            ep_task_attr = str(ep_task_attr).strip() if ep_task_attr is not None else ""
             images   = f["observation/images/top"][()]  # (T, H, W, 3) uint8 RGB
             states   = f["observation/state"][()]        # (T, 6) float32
             actions  = f["action"][()]                   # (T, 6) float32
@@ -224,6 +290,8 @@ def convert(input_dir: Path, output_dir: Path, task: str) -> None:
               f"| image {images.shape[1]}×{images.shape[2]}")
 
         chunk = ep_idx // CHUNKS_SIZE
+        ep_task = episode_task_map.get(ep_idx, ep_task_attr or task)
+        ep_task_index = get_task_index(ep_task)
 
         # ── Video ─────────────────────────────────────────────────────────────
         vid_path = (
@@ -242,7 +310,15 @@ def convert(input_dir: Path, output_dir: Path, task: str) -> None:
             / f"chunk-{chunk:03d}"
             / f"episode_{ep_idx:06d}.parquet"
         )
-        write_parquet(parquet_path, ep_idx, states, actions, fps, total_frames)
+        write_parquet(
+            parquet_path,
+            ep_idx,
+            states,
+            actions,
+            fps,
+            total_frames,
+            task_index=ep_task_index,
+        )
 
         # ── Accumulate for stats ──────────────────────────────────────────────
         all_states.append(states)
@@ -250,7 +326,7 @@ def convert(input_dir: Path, output_dir: Path, task: str) -> None:
         all_images.append(images)
         episodes_meta.append({
             "episode_index": ep_idx,
-            "tasks": [task],
+            "tasks": [ep_task],
             "length": n_frames,
         })
         total_frames += n_frames
@@ -297,7 +373,7 @@ def convert(input_dir: Path, output_dir: Path, task: str) -> None:
         },
         "total_episodes":  n_episodes,
         "total_frames":    total_frames,
-        "total_tasks":     1,
+        "total_tasks":     len(index_to_task),
         "total_videos":    n_episodes,
         "total_chunks":    1,
         "chunks_size":     CHUNKS_SIZE,
@@ -305,7 +381,10 @@ def convert(input_dir: Path, output_dir: Path, task: str) -> None:
         # Template strings for path resolution (LeRobot convention)
         "data_path":  "data/chunk-{episode_chunk:03d}/episode_{episode_index:06d}.parquet",
         "video_path": "videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.mp4",
-        "tasks":      [{"task_index": 0, "task": task}],
+        "tasks":      [
+            {"task_index": i, "task": t}
+            for i, t in enumerate(index_to_task)
+        ],
     }
 
     with open(meta_dir / "info.json", "w") as fh:
@@ -319,13 +398,15 @@ def convert(input_dir: Path, output_dir: Path, task: str) -> None:
         json.dump(stats, fh, indent=2)
 
     with open(meta_dir / "tasks.jsonl", "w") as fh:
-        fh.write(json.dumps({"task_index": 0, "task": task}) + "\n")
+        for i, t in enumerate(index_to_task):
+            fh.write(json.dumps({"task_index": i, "task": t}) + "\n")
 
     print(f"\nConversion complete!")
     print(f"  Output path : {output_dir}")
     print(f"  Episodes    : {n_episodes}")
     print(f"  Total frames: {total_frames}")
     print(f"  FPS         : {fps}")
+    print(f"  Tasks       : {len(index_to_task)}")
     print(f"\nNext step:")
     print(f"  python train_act.py --dataset_dir {input_dir} --output_dir runs/act_001")
 
@@ -347,8 +428,16 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--task",
-        default="robot manipulation",
-        help="Human-readable task description stored in the dataset metadata",
+        default="pick and place object",
+        help="Default task description for episodes without an explicit override",
+    )
+    parser.add_argument(
+        "--episode_task_map",
+        default=None,
+        help=(
+            "Optional path to JSON mapping episode indices to task strings. "
+            "Formats: {'0': 'task'} or [{'episode_index': 0, 'task': '...'}]."
+        ),
     )
     return parser.parse_args()
 
@@ -364,4 +453,5 @@ if __name__ == "__main__":
               file=sys.stderr)
         sys.exit(1)
 
-    convert(Path(args.input_dir), Path(args.output_dir), args.task)
+    task_map_path = Path(args.episode_task_map) if args.episode_task_map else None
+    convert(Path(args.input_dir), Path(args.output_dir), args.task, task_map_path)

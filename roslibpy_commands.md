@@ -42,12 +42,19 @@ rosrun dofbot_policy_bridge keyboard_teleop.py
 #
 #   Episode control (single press):
 #     [  start recording
-#     ]  stop + save  →  writes HDF5 to output_dir
+#     ]  stop + save  →  prompts for object label, then writes HDF5
 #     \  discard + home
 #     z  home only
 #     x  place position
 #     p  print current joint angles
 #     q  quit
+#
+#   Object label prompt (appears when ] is pressed):
+#     The terminal will briefly restore normal input and display:
+#       Object label (Enter to skip):
+#     Type the object being manipulated, e.g.  yellow cube
+#     Press Enter.  (Press Enter immediately to skip and use the default task.)
+#     The label is saved in the HDF5 episode attrs and episode_task_map.json.
 
 
 # #################################################################################################
@@ -145,7 +152,7 @@ roslaunch orbbec_camera dabai_dcw2.launch
 rostopic pub -1 /robot/cmd std_msgs/String "data: 'start'"
 
 ## Jetson terminal #7 - Robot controller (safety gate + episode management)
-rosrun dofbot_policy_bridge robot_controller.py
+rosrun dofbot_policy_bridge robot_controller.py _gripper_soft_max_deg:=120
 
 ## FINALLY 
 ## Lab Computer — Step 1: smoke test (no ML, validates full pipeline)
@@ -158,7 +165,7 @@ python lerobot_inference_server.py \
 ## Lab Computer — Step 3: your fine-tuned checkpoint
 python3 inference/lerobot_inference_server.py \
     --policy_type act \
-    --checkpoint_path training/runs/act_001/checkpoints/step_005000 \
+    --checkpoint_path runs/act_001/checkpoints/step_050000 \
     --inference_hz 5 \
     --move_time_ms 200 \
     --jetson_ip 192.168.0.8
@@ -179,3 +186,143 @@ python training/train_act.py \
     --output_dir runs/act_001 --num_steps 50000 --device cuda
 
 Ctrl + Z to stop a program from running
+
+
+# #################################################################################################
+# ########################### PI_0 TRAINING + INFERENCE ###########################################
+# #################################################################################################
+#
+# Pi0 uses PaliGemma (3 B VLM) and requires the dataset in LeRobot v2 format.
+# Step 1 — Convert HDF5 episodes → LeRobot v2 format
+# (only needs to be done once; rerun if you collect more episodes)
+
+conda activate dofbot_controller
+python training/convert_to_lerobot.py \
+    --input_dir  dofbot_pro_ws/src/dofbot_policy_bridge/dofbot_dataset \
+    --output_dir runs/lerobot_dataset
+
+# Step 2 — Fine-tune pi0 (expert-only mode: VLM frozen, ~6–8 GB VRAM)
+# Downloads ~5 GB pretrained checkpoint from HuggingFace the first time.
+# Increase --num_steps to 30 000+ once you have 50+ demonstrations.
+
+python training/train_pi0.py \
+    --lerobot_dir  runs/lerobot_dataset \
+    --output_dir   runs/pi0_001 \
+    --num_steps    10000 \
+    --batch_size   4 \
+    --device       cuda
+
+# Full fine-tune (all weights unfrozen — needs ~20+ GB VRAM):
+python training/train_pi0.py \
+    --lerobot_dir  runs/lerobot_dataset \
+    --output_dir   runs/pi0_001_full \
+    --num_steps    10000 \
+    --no_train_expert_only \
+    --dtype        bfloat16 \
+    --device       cuda
+
+# Monitor training:
+tensorboard --logdir runs/pi0_001/tb
+
+# Step 3 — Run pi0 inference (Jetson terminals 1–7 same as ACT inference above)
+conda activate dofbot_controller
+python inference/lerobot_inference_server.py \
+    --policy_type     pi_0 \
+    --checkpoint_path runs/pi0_001/checkpoints/step_010000 \
+    --task_prompt     'pick and place yellow cube to side area' \
+    --inference_hz    5 \
+    --move_time_ms    200 \
+    --jetson_ip       192.168.0.8
+
+# Change --task_prompt to match the object you placed, e.g.:
+#   'pick and place red cube to side area'
+#   'pick and place green cube to side area'
+
+
+# #################################################################################################
+# #################### SMOLVLA TRAINING + INFERENCE (fits 7 GB GPU) ##############################
+# #################################################################################################
+#
+# SmolVLA uses a 500 M-parameter VLM backbone (~0.9 GB VRAM inference, ~2–4 GB fine-tune).
+# It uses the same LeRobot v2 dataset as pi0 — no extra conversion needed.
+# If you already ran convert_to_lerobot.py above, skip Step 1.
+
+# Step 1 — Convert HDF5 episodes → LeRobot v2 format (skip if already done)
+conda activate dofbot_controller
+python training/convert_to_lerobot.py \
+    --input_dir  dofbot_pro_ws/src/dofbot_policy_bridge/dofbot_dataset \
+    --output_dir runs/lerobot_dataset
+
+# Step 2 — Fine-tune SmolVLA (expert-only, VLM frozen — ~2–4 GB VRAM, batch_size=8 fits in 7 GB)
+# Downloads ~1 GB pretrained checkpoint from HuggingFace the first time.
+
+python training/train_smolvla.py \
+    --lerobot_dir  runs/lerobot_dataset \
+    --output_dir   runs/smolvla_001 \
+    --num_steps    10000 \
+    --batch_size   8 \
+    --device       cuda
+
+# Full fine-tune (all weights unfrozen — ~6–8 GB VRAM, reduce batch_size if needed):
+python training/train_smolvla.py \
+    --lerobot_dir  runs/lerobot_dataset \
+    --output_dir   runs/smolvla_001_full \
+    --num_steps    10000 \
+    --no_train_expert_only \
+    --batch_size   4 \
+    --device       cuda
+
+# Monitor training:
+tensorboard --logdir runs/smolvla_001/tb
+
+# Step 3 — Run SmolVLA inference (Jetson terminals 1–7 same as ACT inference above)
+conda activate dofbot_controller
+python inference/lerobot_inference_server.py \
+    --policy_type     smolvla \
+    --checkpoint_path runs/smolvla_001/checkpoints/step_010000 \
+    --task_prompt     'pick and place yellow cube to side area' \
+    --inference_hz    5 \
+    --move_time_ms    200 \
+    --jetson_ip       192.168.0.8
+
+# Change --task_prompt to match the object you placed, e.g.:
+#   'pick and place red cube to side area'
+#   'pick and place green cube to side area'
+
+
+
+# ############################################################################
+# ############################ REPLAYING EPISODES ############################
+# ############################################################################
+
+# ############################ Replay to get video ###########################
+conda run -n dofbot_controller python3 tools/replay_episode.py \
+  dofbot_pro_ws/src/dofbot_policy_bridge/dofbot_dataset/episode_000019.hdf5
+# ############################################################################
+
+# ############################ Replay on Robot ###############################
+# Terminal 1
+roscore
+# Terminal 2
+rosrun dofbot_pro_info arm_driver.py
+# Terminal 3
+roslaunch rosbridge_server rosbridge_websocket.launch
+
+# ############ On Lab Computer ##########
+# First run — half speed, go home after
+conda run -n dofbot_controller python3 tools/replay_on_robot.py \
+    dofbot_pro_ws/src/dofbot_policy_bridge/dofbot_dataset/episode_000019.hdf5 \
+    --speed 0.5 --home_after
+
+# Full speed once it looks correct
+conda run -n dofbot_controller python3 tools/replay_on_robot.py \
+    dofbot_pro_ws/src/dofbot_policy_bridge/dofbot_dataset/episode_000019.hdf5
+
+
+conda run -n dofbot_controller python3 tools/replay_on_robot.py \
+  dofbot_pro_ws/src/dofbot_policy_bridge/dofbot_dataset/episode_000019.hdf5 \
+  --speed 0.4 \
+  --wait_for_ready \
+  --gripper_max_deg 118 \
+  --gripper_margin_deg 2 \
+  --home_after

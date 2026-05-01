@@ -70,7 +70,7 @@ import roslibpy
 import torch
 
 import constants
-from policy import MockPolicy, LocalACTPolicy, LocalDiffusionPolicy
+from policy import MockPolicy, LocalACTPolicy, LocalDiffusionPolicy, LocalPi0Policy, LocalSmolVLAPolicy
 # ── Coordinate conversions ─────────────────────────────────────────────────────
 
 def joint_state_rad_to_deg(joints_rad) -> list:
@@ -164,9 +164,25 @@ class LeRobotInferenceServer:
             self.policy = LocalACTPolicy(args.checkpoint_path, args.device)
         elif args.policy_type == "diffusion":
             self.policy = LocalDiffusionPolicy(args.checkpoint_path, args.device)
+        elif args.policy_type == "pi_0":
+            if not args.checkpoint_path:
+                raise ValueError("--checkpoint_path is required for pi_0")
+            self.policy = LocalPi0Policy(
+                args.checkpoint_path,
+                task_prompt=args.task_prompt,
+                device=args.device,
+            )
+        elif args.policy_type == "smolvla":
+            if not args.checkpoint_path:
+                raise ValueError("--checkpoint_path is required for smolvla")
+            self.policy = LocalSmolVLAPolicy(
+                args.checkpoint_path,
+                task_prompt=args.task_prompt,
+                device=args.device,
+            )
         else:
             raise ValueError(f"Unknown policy_type: {args.policy_type}. "
-                             "Use: mock | pretrained | act | diffusion")
+                             "Use: mock | act | diffusion | pi_0 | smolvla")
         print("Policy ready.")
 
         # ── Connect to rosbridge on Jetson ────────────────────────────────
@@ -235,6 +251,7 @@ class LeRobotInferenceServer:
         try:
             bgr = ros_image_to_cv2(msg)
             bgr = cv2.resize(bgr, (self.img_size[1], self.img_size[0]))
+            bgr = cv2.flip(bgr, 0)
             with self._lock:
                 self._latest_image = bgr
                 self._image_stamp  = time.time()
@@ -365,10 +382,11 @@ def parse_args():
     # Policy selection
     parser.add_argument(
         "--policy_type",
-        choices=["mock", "pretrained", "act", "diffusion"],
+        choices=["mock", "pretrained", "act", "diffusion", "pi_0", "smolvla"],
         default="mock",
         help="mock=safe waypoints (no ML) | pretrained=HuggingFace | "
-             "act=local ACT checkpoint | diffusion=local Diffusion checkpoint",
+             "act=local ACT checkpoint | diffusion=local Diffusion checkpoint | "
+             "pi_0=local pi0 checkpoint | smolvla=local SmolVLA checkpoint",
     )
     parser.add_argument(
         "--pretrained_repo",
@@ -378,7 +396,12 @@ def parse_args():
     parser.add_argument(
         "--checkpoint_path",
         default="",
-        help="Local LeRobot checkpoint directory for act/diffusion modes",
+        help="Local checkpoint directory for act / diffusion / pi_0 modes",
+    )
+    parser.add_argument(
+        "--task_prompt",
+        default="pick and place object",
+        help="Language task description for pi_0 inference (e.g. 'pick and place yellow cube to side area')",
     )
 
     # Jetson connection
