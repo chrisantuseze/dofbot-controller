@@ -77,7 +77,7 @@ JOINT_SAFE_MAX = [180.0, 270.0, 180.0, 270.0, 180.0, 180.0]
 
 # Additional software limit for gripper close angle (joint index 5, servo degrees).
 # Keep below mechanical hard-stop. Tune per object size.
-DEFAULT_GRIPPER_SOFT_MAX_DEG = 125.0
+DEFAULT_GRIPPER_SOFT_MAX_DEG = 140.0
 
 # Home position (degrees) — matches arm_driver.py initialisation
 JOINTS_HOME = [90.0, 90.0, 90.0, 0.0, 90.0, 30.0]
@@ -96,6 +96,18 @@ HEARTBEAT_TIMEOUT = 10.0 #3.0
 STATE_IDLE    = "idle"      # waiting for "start" command
 STATE_RUNNING = "running"   # accepting and forwarding policy actions
 STATE_HOMING  = "homing"    # moving to home position
+
+# ── Gripper stall detection ───────────────────────────────────────────────────
+# Joint index (0-based) of the gripper servo.
+GRIPPER_JOINT_IDX    = 5
+# Default position error (deg) between commanded and actual angle that signals a stall.
+# When the servo is pressed against an object it can no longer move, so the
+# actual position lags behind the commanded position by this margin.
+DEFAULT_GRIPPER_STALL_THRESH = 18.0  # Increased from 12.0 to reduce false positives
+# Default number of consecutive 20 Hz ticks the error must stay above the threshold
+# before the stall is confirmed.  6 ticks ≈ 300 ms — enough to ignore transient
+# overshoot while catching a real grasp contact.
+DEFAULT_GRIPPER_STALL_FRAMES = 6  # Increased from 4 for more confirmation
 
 
 class RobotController:
@@ -116,6 +128,10 @@ class RobotController:
             rospy.get_param("~gripper_soft_max_deg", DEFAULT_GRIPPER_SOFT_MAX_DEG))
         self.gripper_soft_max_deg = float(np.clip(
             self.gripper_soft_max_deg, JOINT_SAFE_MIN[5], JOINT_SAFE_MAX[5]))
+        self.gripper_stall_thresh = float(
+            rospy.get_param("~gripper_stall_thresh_deg", DEFAULT_GRIPPER_STALL_THRESH))
+        self.gripper_stall_frames = int(
+            rospy.get_param("~gripper_stall_frames", DEFAULT_GRIPPER_STALL_FRAMES))
 
         # State
         self._lock              = threading.Lock()
@@ -124,6 +140,11 @@ class RobotController:
         self._current_joints    = np.array(JOINTS_HOME, dtype=np.float32)
         self._target_joints     = np.array(JOINTS_HOME, dtype=np.float32)
         self._last_action_time  = 0.0   # epoch seconds of last /policy/action msg
+
+        # Gripper stall state
+        self._gripper_stall_count = 0
+        self._gripper_stalled     = False
+        self._gripper_held_pos    = float(JOINTS_HOME[GRIPPER_JOINT_IDX])
 
         # Publishers
         self._cmd_pub    = rospy.Publisher(
@@ -144,6 +165,8 @@ class RobotController:
         rospy.loginfo("[RobotController] Initialised. autostart=%s", self.autostart)
         rospy.loginfo("[RobotController] Gripper soft-close max=%.1f deg",
                   self.gripper_soft_max_deg)
+        rospy.loginfo("[RobotController] Gripper stall thresh=%.1f deg, frames=%d",
+                  self.gripper_stall_thresh, self.gripper_stall_frames)
         self._publish_status()
 
         if self.autostart:
@@ -182,6 +205,18 @@ class RobotController:
                     [f"{v:.1f}" for v in raw],
                     [f"{v:.1f}" for v in clamped],
                 )
+
+            # Gripper stall override — hold position if stall active, clear if opening
+            if self._gripper_stalled:
+                if clamped[GRIPPER_JOINT_IDX] > self._gripper_held_pos:
+                    # Still trying to close — enforce the held position
+                    clamped[GRIPPER_JOINT_IDX] = self._gripper_held_pos
+                else:
+                    # Policy is opening the gripper — clear the stall lock
+                    self._gripper_stalled     = False
+                    self._gripper_stall_count = 0
+                    rospy.loginfo(
+                        "[RobotController] Gripper stall cleared — opening detected.")
 
             self._target_joints  = np.array(clamped, dtype=np.float32)
             self._last_action_time = time.time()
@@ -253,9 +288,12 @@ class RobotController:
 
     def _start_episode(self):
         with self._lock:
-            self._episode_state = STATE_RUNNING
-            self._episode_step  = 0
-            self._last_action_time = time.time()
+            self._episode_state       = STATE_RUNNING
+            self._episode_step        = 0
+            self._last_action_time    = time.time()
+            self._gripper_stall_count = 0
+            self._gripper_stalled     = False
+            self._gripper_held_pos    = float(JOINTS_HOME[GRIPPER_JOINT_IDX])
         self._ready_pub.publish(Bool(data=True))
         self._publish_status()
         rospy.loginfo("[RobotController] Episode started — accepting policy actions.")
@@ -304,6 +342,44 @@ class RobotController:
             diff = np.abs(self._current_joints - self._target_joints)
         return bool(np.all(diff < self.settled_threshold))
 
+    def _monitor_gripper_stall(self) -> None:
+        """
+        Called at 20 Hz from run().
+
+        The LX bus servos on the Dofbot Pro do not expose a current/torque
+        register through the standard Arm_Lib API, so we approximate torque
+        feedback via *position error*: when the gripper is commanded to close
+        further but the read-back position stops following, the motor is stalled
+        against the grasped object.
+
+        Once self.gripper_stall_frames consecutive ticks confirm the stall, we lock
+        the gripper at its current position.  The lock is cleared automatically
+        as soon as the policy issues an opening command (smaller angle).
+        """
+        with self._lock:
+            if self._gripper_stalled:
+                return
+            target_grip = float(self._target_joints[GRIPPER_JOINT_IDX])
+            actual_grip = float(self._current_joints[GRIPPER_JOINT_IDX])
+            error = target_grip - actual_grip
+            if error > self.gripper_stall_thresh:
+                self._gripper_stall_count += 1
+                newly_stalled = (self._gripper_stall_count >= self.gripper_stall_frames)
+                if newly_stalled:
+                    self._gripper_stalled     = True
+                    self._gripper_held_pos    = actual_grip
+                    self._gripper_stall_count = 0
+            else:
+                self._gripper_stall_count = 0
+                newly_stalled = False
+
+        if newly_stalled:
+            rospy.logwarn(
+                "[RobotController] Gripper stall detected — holding at %.1f° "
+                "(cmd=%.1f°, error=%.1f°).",
+                actual_grip, target_grip, error,
+            )
+
     def _publish_status(self):
         with self._lock:
             payload = {
@@ -334,6 +410,9 @@ class RobotController:
                 # Notify lab server that arm has settled at the target
                 elif self._is_settled():
                     self._ready_pub.publish(Bool(data=True))
+
+                # Detect gripper contact and freeze further closing
+                self._monitor_gripper_stall()
 
             rate.sleep()
 

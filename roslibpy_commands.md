@@ -25,7 +25,7 @@ rostopic pub /robot/cmd std_msgs/String "data: 'start'"
 # Terminal #5 — Data collector (saves HDF5 episodes)
 roslaunch dofbot_policy_bridge keyboard_collection.launch \
     output_dir:=$HOME/echris/dofbot-controller/dofbot_pro_ws/src/dofbot_policy_bridge/dofbot_dataset \
-    record_hz:=5 \
+    record_hz:=10 \
     episode_index:=0
 
 # Terminal #6 — Keyboard teleop (must run in its own interactive terminal)

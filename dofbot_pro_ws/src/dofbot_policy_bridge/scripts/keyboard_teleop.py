@@ -51,8 +51,8 @@ JOINT_SAFE_MAX = [180.0, 270.0, 180.0, 270.0, 180.0, 180.0]
 # Soft close limit for gripper during data collection.
 # Keeps demos below the mechanical hard-stop so recordings don't contain
 # stall-force frames that teach the policy to over-squeeze.
-# Override at launch: _gripper_soft_max_deg:=120
-GRIPPER_SOFT_MAX_DEG = 125.0
+# Override at launch: _gripper_soft_max_deg:=140
+GRIPPER_SOFT_MAX_DEG = 140.0
 
 JOINTS_HOME  = [90.0,  80.0, 45.0, 0.0, 90.0, 30.0]
 JOINTS_PLACE = [180.0, 45.0, 60.0, 45.0, 90.0, 30.0]
