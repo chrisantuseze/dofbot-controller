@@ -21,13 +21,16 @@ Results go to `verify2act/results/<task>_<timestamp>/` (`episodes.jsonl`, `summa
 
 | id | goal | family | plan length | status |
 |---|---|---|---|---|
-| task1a | Put the blue block and the yellow block into the bin | 1 | 2 | run 2026-09-24: 10 ep, 5/10 real success |
-| task1b | Clear all cool-colored blocks into the bin and leave the yellow block | 1 | 2 | started 2026-09-24, no episode recorded |
-| task1c | Clear all warm-colored blocks into the bin and leave the green block | 1 | 2 | run 2026-09-23 twice: 3/10, then 6/10 (after the deposit fixes) |
-| task1d | Put the red block, the green block and the blue block into the bin except the yellow block | 1 | 3 | started 2026-09-24, no episode recorded |
-| task2a | Put the red block to the left of the blue block | 2 | 2 | new — dry-run only |
-| task2b | Put the green block to the right of the yellow block | 2 | 2 | new — dry-run only |
+| task1a | Put the blue block and the yellow block into the bin | 1 | 2 | 09-24: 5/10 (6 verified) |
+| task1b | Clear all cool-colored blocks into the bin and leave the yellow block | 1 | 2 | not run yet (09-24 session stopped before episode 1 finished) |
+| task1c | Clear all warm-colored blocks into the bin and leave the green block | 1 | 2 | 09-23: 3/10, then 6/10 after the bin-deposit fixes (7 verified) |
+| task1d | Put the red block, the green block and the blue block into the bin except the yellow block | 1 | 3 | 09-24: 3/3 |
+| task2a | Put the red block to the left of the blue block | 2 | 2 | 09-24: 4/4 (an earlier 0/4 session ran a grasp node started before `place_at` existed) |
+| task2b | Put the green block to the right of the yellow block | 2 | 2 | 09-24: 4/4 |
 | task3a | Stack the blue block on top of the yellow block | 3 | 2 | **deferred** — placement alignment issues in deployment |
+
+Counts are real successes / labeled episodes, from `verify2act/results/<task>_<timestamp>/episodes.jsonl`.
+All runs so far use the **stub** world model and critic; the evaluation proper uses the real ones.
 
 Tasks 1a–1d exercise the same skill and differ only in language (explicit colours, colour groups,
 "leave"/"except" exclusions), so they test goal grounding more than manipulation.
@@ -42,15 +45,16 @@ Family 2 adds a spatial relation and a two-step hold-and-place.
   where placements are known to land ~2 cm short.
 - **Family 3:** base block at world x ≤ +3 cm (same calibration issue).
 
-## Before running family 2 on the robot
+## Before a session
 
-1. Restart `lang_color_grasp.py` (it homes on start).
-2. Tune the gap with direct trials, no planner/critic:
-   ```bash
-   python3 verify2act/stack_test.py --top red --base blue --relation left_of --trials 5
-   rosparam set /lang_color_grasp/place_gap 0.08   # if the opening jaws knock the reference block
-   ```
-3. Then `--task task2a` / `task2b` sessions.
+- Restart any grasp/detect node whose file changed since it was launched (`lang_color_grasp.py` homes on
+  start). A running node keeps the old code.
+- Direct skill trials, no planner/critic, for tuning a placement skill:
+  ```bash
+  python3 verify2act/skill_test.py --top green --base red --trials 5                     # stacking
+  python3 verify2act/skill_test.py --top red --base blue --relation left_of --trials 5   # rearrangement
+  rosparam set /lang_color_grasp/place_gap 0.08   # if the opening jaws knock the reference block
+  ```
 
 ## Ablations (optional, per task)
 

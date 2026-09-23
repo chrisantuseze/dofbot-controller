@@ -212,9 +212,10 @@ verify2act/results/*/*
 !verify2act/results/*/summary.md
 !verify2act/results/*/summary.json
 !verify2act/results/stack_test/*/
-verify2act/results/stack_test/*/*
-!verify2act/results/stack_test/*/trials.jsonl
-!verify2act/results/stack_test/*/summary.md
+!verify2act/results/skill_test/*/
+verify2act/results/*_test/*/*
+!verify2act/results/*_test/*/trials.jsonl
+!verify2act/results/*_test/*/summary.md
 
 # local debugging
 debug_output/
