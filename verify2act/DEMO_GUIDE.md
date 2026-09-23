@@ -41,6 +41,7 @@ rosrun dofbot_policy_bridge robot_controller.py _gripper_soft_max_deg:=120
 
 # Terminal 6 — Allow the arm to accept commands
 rostopic pub -1 /robot/cmd std_msgs/String "data: 'start'"
+
 ```
 
 ---
@@ -60,6 +61,7 @@ roslaunch dofbot_policy_bridge keyboard_collection.launch \
     output_dir:=$HOME/echris/dofbot-controller/verify2act/dataset \
     record_hz:=10 \
     episode_index:=0
+    
 ```
 
 > **Note:** Set `episode_index` to the next available index (check how many
@@ -293,3 +295,24 @@ python3 verify2act/replay_on_robot.py <episode.hdf5> \
 # Generate overlay cards
 python3 verify2act/overlay_cards.py
 ```
+
+---
+
+## Verify2Act pipeline (VLM → world model → critic → grasp)
+
+The planner, world model and critic run on any machine; the Jetson only runs ROS.
+
+```bash
+# Jetson: roscore, arm_driver, camera, rosbridge_websocket, then
+rosrun dofbot_pro_voice_ctrl lang_color_detect.py
+rosrun dofbot_pro_voice_ctrl lang_color_grasp.py
+
+# Workstation (needs `pip install roslibpy opencv-python numpy`):
+python3 verify2act/v2a_pipeline.py --task task1a --dry_run                       # offline, synthetic scene
+python3 verify2act/v2a_pipeline.py --task task1a --jetson_ip <JETSON_IP> --dry_run  # real camera, no arm motion
+python3 verify2act/v2a_pipeline.py --task task1a --jetson_ip <JETSON_IP>            # full run
+```
+
+Per-attempt results are appended to `verify2act/assets/rollouts/runs.jsonl`; after a real run the
+post-execution frame is saved as `attempt_N_real_final.jpg` next to the imagined timeline.
+Add `--simulate_reprompt` / `--simulate_temporal_inconsistency` to exercise the reject → retry paths.

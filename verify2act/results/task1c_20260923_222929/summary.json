@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "session": "task1c_20260923_222929",
+    "task": "task1c",
+    "goal": "Clear all warm-colored blocks into the bin and leave the green block",
+    "episodes_planned": 10,
+    "backend": "local",
+    "dry_run": false,
+    "max_steps": 4,
+    "max_replans": 2,
+    "max_requery": 2,
+    "exec_mode": "full_plan",
+    "theta_c": 0.5,
+    "theta_p": 0.6,
+    "simulate_reprompt": false,
+    "simulate_temporal_inconsistency": false,
+    "simulate_uncertainty": false,
+    "execute_unverified": false,
+    "wm_server": false,
+    "started": "2026-09-23T22:29:29",
+    "ended": "2026-09-23T22:40:18"
+  },
+  "summary": {
+    "episodes": 10,
+    "real_success_rate": 0.75,
+    "real_success_overall": 0.3,
+    "verified_rate": 0.4,
+    "accepted_without_reflect": 0.2,
+    "critic_precision": 0.75,
+    "false_accepts": 1,
+    "avg_timesteps": 1.4,
+    "avg_replans": 1.6,
+    "avg_vlm_calls": 2.8,
+    "total_requeries": 27,
+    "total_temporal_rejections": 27,
+    "total_goal_rejections": 15,
+    "mean_episode_time_s": 32.38,
+    "per_task": {
+      "task1c": {
+        "episodes": 10,
+        "verified": 4,
+        "real_success": 3,
+        "labeled": 10
+      }
+    }
+  }
+}

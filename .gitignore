@@ -204,3 +204,18 @@ dmypy.json
 
 paper_viz/real*
 *.hdf5
+# Verify2Act run outputs: keep only the per-session records (labels + metrics), not the frames
+verify2act/assets/rollouts/
+!verify2act/results/
+verify2act/results/*/*
+!verify2act/results/*/episodes.jsonl
+!verify2act/results/*/summary.md
+!verify2act/results/*/summary.json
+!verify2act/results/stack_test/*/
+verify2act/results/stack_test/*/*
+!verify2act/results/stack_test/*/trials.jsonl
+!verify2act/results/stack_test/*/summary.md
+
+# local debugging
+debug_output/
+scratch/

@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "session": "task1a_real_test",
+    "backend": "127.0.0.1",
+    "max_attempts": 3,
+    "dry_run": false,
+    "simulate_reprompt": false,
+    "simulate_temporal_inconsistency": false,
+    "started": "2026-09-21T03:03:38",
+    "ended": "2026-09-21T03:04:34"
+  },
+  "summary": {
+    "episodes": 1,
+    "verified_within_budget": 1.0,
+    "first_attempt_accept": 1.0,
+    "mean_attempts_to_accept": 1,
+    "robot_executed_ok": 1.0,
+    "real_success_rate": null,
+    "real_success_overall": 0.0,
+    "false_accepts": 0,
+    "total_temporal_rejections": 0,
+    "total_goal_rejections": 0,
+    "mean_episode_time_s": 54.2,
+    "per_task": {
+      "task1a": {
+        "episodes": 1,
+        "verified": 1,
+        "real_success": 0,
+        "labeled": 0
+      }
+    }
+  }
+}

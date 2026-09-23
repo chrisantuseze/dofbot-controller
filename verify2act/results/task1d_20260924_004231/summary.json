@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "session": "task1d_20260924_004231",
+    "task": "task1d",
+    "goal": "Put the red block, the green block and the blue block into the bin except the yellow block",
+    "episodes_planned": 3,
+    "backend": "local",
+    "dry_run": false,
+    "max_steps": 4,
+    "max_replans": 2,
+    "max_requery": 2,
+    "exec_mode": "full_plan",
+    "theta_c": 0.5,
+    "theta_p": 0.6,
+    "simulate_reprompt": false,
+    "simulate_temporal_inconsistency": false,
+    "simulate_uncertainty": false,
+    "execute_unverified": false,
+    "wm_server": false,
+    "started": "2026-09-24T00:42:31",
+    "ended": "2026-09-24T00:50:37"
+  },
+  "summary": {
+    "episodes": 3,
+    "real_success_rate": 1.0,
+    "real_success_overall": 1.0,
+    "verified_rate": 1.0,
+    "accepted_without_reflect": 0.0,
+    "critic_precision": 1.0,
+    "false_accepts": 0,
+    "avg_timesteps": 2,
+    "avg_replans": 2,
+    "avg_vlm_calls": 4,
+    "total_requeries": 27,
+    "total_temporal_rejections": 27,
+    "total_goal_rejections": 0,
+    "mean_episode_time_s": 103.34,
+    "per_task": {
+      "task1d": {
+        "episodes": 3,
+        "verified": 3,
+        "real_success": 3,
+        "labeled": 3
+      }
+    }
+  }
+}

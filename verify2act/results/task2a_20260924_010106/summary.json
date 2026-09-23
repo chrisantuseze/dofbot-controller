@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "session": "task2a_20260924_010106",
+    "task": "task2a",
+    "goal": "Put the red block to the left of the blue block",
+    "episodes_planned": 4,
+    "backend": "local",
+    "dry_run": false,
+    "max_steps": 4,
+    "max_replans": 2,
+    "max_requery": 2,
+    "exec_mode": "full_plan",
+    "theta_c": 0.5,
+    "theta_p": 0.6,
+    "simulate_reprompt": false,
+    "simulate_temporal_inconsistency": false,
+    "simulate_uncertainty": false,
+    "execute_unverified": false,
+    "wm_server": false,
+    "started": "2026-09-24T01:01:06",
+    "ended": "2026-09-24T01:07:11"
+  },
+  "summary": {
+    "episodes": 4,
+    "real_success_rate": 1.0,
+    "real_success_overall": 1.0,
+    "verified_rate": 1.0,
+    "accepted_without_reflect": 1.0,
+    "critic_precision": 1.0,
+    "false_accepts": 0,
+    "avg_timesteps": 2.25,
+    "avg_replans": 0,
+    "avg_vlm_calls": 1.25,
+    "total_requeries": 0,
+    "total_temporal_rejections": 0,
+    "total_goal_rejections": 0,
+    "mean_episode_time_s": 53.98,
+    "per_task": {
+      "task2a": {
+        "episodes": 4,
+        "verified": 4,
+        "real_success": 4,
+        "labeled": 4
+      }
+    }
+  }
+}
