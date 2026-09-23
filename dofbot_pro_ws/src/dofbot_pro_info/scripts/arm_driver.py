@@ -12,6 +12,10 @@ from math import pi
 class ArmDriver:
     def __init__(self):
        self.Arm = Arm_Device()
+       # One I2C bus: the 20 Hz read-back thread and the write callback must not interleave, or writes are
+       # silently dropped (seen: single joints ignoring a command). Serialize all bus access.
+       import threading
+       self.bus_lock = threading.Lock()
        self.sub_Arm = rospy.Subscriber("TargetAngle", ArmJoint, self.Armcallback, queue_size=1000)
        self.sub_Buzzer = rospy.Subscriber("Buzzer", Bool, self.Buzzercallback,queue_size=1000)
        self.staPublisher = rospy.Publisher('joint_states', JointState, queue_size=1000)
@@ -36,7 +40,8 @@ class ArmDriver:
             arm_joint.joints = self.cur_joints
             for i in range(2):
                 print("--------------------------")
-                self.Arm.Arm_serial_servo_write6(msg.joints[0], msg.joints[1],msg.joints[2],msg.joints[3],msg.joints[4],msg.joints[5],time=msg.run_time)
+                with self.bus_lock:
+                    self.Arm.Arm_serial_servo_write6(msg.joints[0], msg.joints[1],msg.joints[2],msg.joints[3],msg.joints[4],msg.joints[5],time=msg.run_time)
                 self.cur_joints = list(msg.joints)
                 self.ArmPubUpdate.publish(arm_joint)
 			#time.sleep(0.01)
@@ -45,7 +50,8 @@ class ArmDriver:
             arm_joint.angle = msg.angle
             for i in range(2):
                 print("msg.id: ",msg.id)
-                self.Arm.Arm_serial_servo_write(msg.id, msg.angle, msg.run_time)
+                with self.bus_lock:
+                    self.Arm.Arm_serial_servo_write(msg.id, msg.angle, msg.run_time)
                 self.cur_joints[msg.id - 1] = msg.angle
                 self.ArmPubUpdate.publish(arm_joint)
         self.joints_states_update()
@@ -63,7 +69,8 @@ class ArmDriver:
     def read_current_joint(self):
         for i in range(6):
             time.sleep(.01)
-            val = self.Arm.Arm_serial_servo_read(i+1)
+            with self.bus_lock:
+                val = self.Arm.Arm_serial_servo_read(i+1)
             if val is not None:
                 self.cur_joints[i] = val
             # print(self.cur_joints[i])

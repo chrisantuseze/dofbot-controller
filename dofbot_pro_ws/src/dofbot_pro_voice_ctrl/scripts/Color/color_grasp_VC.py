@@ -29,9 +29,10 @@ class ColorGraspNode:
         self.pubGraspStatus = rospy.Publisher("grasp_done", Bool, queue_size=1)
         self.client = rospy.ServiceProxy("get_kinemarics", kinemarics)
         self.grasp_flag = True
-        self.init_joints = [90.0, 120, 0.0, 0.0, 90, 90]
+        self.init_joints = [90.0, 120, 0.0, 0.0, 90, 30]
         self.down_joint = [150.0, 55.0, 34.0, 16.0, 90.0,135]
         self.gripper_joint = 90
+        self.gripper_close_angle = rospy.get_param("~gripper_close_angle", 145)
         self.CurEndPos = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.camera_info_K = [477.57421875, 0.0, 319.3820495605469, 0.0, 477.55718994140625, 238.64108276367188, 0.0, 0.0, 1.0]
         self.EndToCamMat = np.array([[1.00000000e+00,0.00000000e+00,0.00000000e+00,0.00000000e+00],
@@ -44,6 +45,8 @@ class ColorGraspNode:
         self.z_offset = offset_config.get('z_offset')
         print("Current_End_Pose: ",self.CurEndPos)
         print("Init Done")     
+        rospy.sleep(0.5)
+        self.pubArm(self.init_joints)
     def get_current_end_pos(self):
         self.client.wait_for_service()
         request = kinemaricsRequest()
@@ -128,7 +131,7 @@ class ColorGraspNode:
         print("self.gripper_joint = ",self.gripper_joint)
         self.pubArm([],5, self.gripper_joint, 2000)
         time.sleep(2.5)
-        self.pubArm([],6, 135, 2000)
+        self.pubArm([],6, self.gripper_close_angle, 2000)
         time.sleep(2.5)
         self.pubArm([],2, 120, 2000)
         time.sleep(2.5)
