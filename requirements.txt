@@ -30,3 +30,6 @@ pexpect==4.8.0
 # gamepad teleoperation
 pygame>=2.1.0
 lerobot
+
+# VLM critic (Phase 2 — GPT-4o vision API)
+openai>=1.30.0
