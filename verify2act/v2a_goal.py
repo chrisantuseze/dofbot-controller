@@ -62,16 +62,18 @@ _PLACE_ON = re.compile(r"\bplace\b.*?\b(red|green|blue|yellow)\b.*?\b(?:on|onto|
 
 
 def parse_step(action_text: str):
-    """Classify a subtask string -> (kind, color, base_color|None); kind in pick | place_on | place_at | pick_place.
-    place_at: base_color is the reference block; the side comes from parse_relative()."""
+    """Classify a subtask string -> (kind, color, base_color|None); kind in pick_place | stack | rearrange.
+    Every subtask is one complete pick-and-place that ends with nothing held (the arm cannot hold a block while
+    the next subtask is planned and verified):
+        "pick and place <c> block into the bin"                   -> pick_place
+        "pick and place <c> block on <b> block"                   -> stack      (base_color = <b>)
+        "pick and place <c> block to the left|right of <b> block" -> rearrange  (base_color = reference <b>;
+                                                                                  the side comes from parse_relative())"""
     t = action_text.lower()
-    color = next((c for c in COLORS if c in t), "red")
     rel = parse_relative(t)
     if rel and "place" in t:
-        return "place_at", rel[0], rel[2]
+        return "rearrange", rel[0], rel[2]
     m = _PLACE_ON.search(t)
     if m:
-        return "place_on", m.group(1), m.group(2)
-    if "place" not in t:
-        return "pick", color, None
-    return "pick_place", color, None
+        return "stack", m.group(1), m.group(2)
+    return "pick_place", next((c for c in COLORS if c in t), "red"), None

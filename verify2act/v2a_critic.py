@@ -105,35 +105,28 @@ class CriticModel:
         problems = []
 
         before, after = color_pixels(current_frame, color), color_pixels(next_frame, color)
-        # "Held block still on the table" = a block-sized blob, not a raw pixel count: the wooden table's grain
-        # passes the red mask as scattered specks (~350 px on the 2026-09-24 task2a frame, > MIN_BLOCK_PIXELS),
-        # which made every "place red ..." step look like red had never been picked up.
-        still_on_table = blob_bbox(current_frame, color) is not None
-        if kind in ("pick", "pick_place"):
-            if before < MIN_BLOCK_PIXELS:
-                problems.append(f"no {color} block visible in the current scene")
-            elif after > 0.3 * before:
+        # "Block on the table" = a block-sized blob, not a raw pixel count: the wooden table's grain passes the red
+        # mask as scattered specks (~350 px on the 2026-09-24 task2a frame, > MIN_BLOCK_PIXELS).
+        if blob_bbox(current_frame, color) is None:
+            problems.append(f"no {color} block visible in the current scene")
+        elif kind == "pick_place":
+            if after > 0.3 * before:
                 problems.append(f"{color} block still on the table after '{subtask_text}'")
-        elif kind == "place_at":
+        elif kind == "rearrange":
             relation = (parse_relative(subtask_text) or (None, "left_of", None))[1]
-            if still_on_table:
-                problems.append(f"ordering violation: {color} block was never picked up (still on the table)")
-            else:
-                ok, why = self._beside(next_frame, color, base, relation)
-                if not ok:
-                    problems.append(why)
+            ok, why = self._beside(next_frame, color, base, relation)
+            if not ok:
+                problems.append(why)
+        elif not self._stacked(next_frame, color, base, current_frame):   # stack
+            problems.append(f"{color} block is not resting on the {base} block")
+        if kind == "rearrange":
             b, a = color_pixels(current_frame, base), color_pixels(next_frame, base)
             if b < MIN_BLOCK_PIXELS:
                 problems.append(f"reference {base} block not visible")
             elif a < KEEP_FRACTION * b:
                 problems.append(f"reference {base} block changed ({b} -> {a} px)")
-        else:  # place_on
-            if still_on_table:
-                problems.append(f"ordering violation: {color} block was never picked up (still on the table)")
-            elif not self._stacked(next_frame, color, base, current_frame):
-                problems.append(f"{color} block is not resting on the {base} block")
-            if color_pixels(current_frame, base) < MIN_BLOCK_PIXELS:
-                problems.append(f"base {base} block not visible")
+        elif kind == "stack" and color_pixels(current_frame, base) < MIN_BLOCK_PIXELS:
+            problems.append(f"base {base} block not visible")
 
         for other in COLORS:
             if other in (color, base):
@@ -150,9 +143,8 @@ class CriticModel:
             logger.warning("[Critic:Temporal] REJECT (score=%.2f): %s", score, reason)
             return CriticVerdict(False, score, reason, "temporal_consistency")
 
-        reason = {"pick": f"{color} block lifted off the table, other blocks unchanged.",
-                  "place_on": f"{color} block now rests on the {base} block, other blocks unchanged.",
-                  "place_at": f"{color} block placed beside the {base} block, other blocks unchanged."}.get(
+        reason = {"stack": f"{color} block now rests on the {base} block, other blocks unchanged.",
+                  "rearrange": f"{color} block placed beside the {base} block, other blocks unchanged."}.get(
                       kind, f"{color} block removed from table, other blocks unchanged.")
         reason = "Temporal transition consistent: " + reason
         logger.info("[Critic:Temporal] ACCEPT")

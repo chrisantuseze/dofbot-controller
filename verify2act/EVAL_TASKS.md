@@ -11,11 +11,15 @@ Results go to `verify2act/results/<task>_<timestamp>/` (`episodes.jsonl`, `summa
 
 ## Task families
 
-| family | skill chain | what the critic checks (from pixels) |
-|---|---|---|
-| 1 — Bin clearing | `pick_place` into the off-camera left bin, one per block | named blocks gone from the table, every other block still there |
-| 2 — Rearrangement | `locate` reference → `pick` (hold) → `place_at` beside the reference | moved block on the correct side of the reference, 0.6–3.5 block widths away, level within one block height, other blocks unchanged |
-| 3 — Stacking | `locate` base → `pick` (hold) → `place_on` the base | top block's centre inside the base block's footprint, other blocks unchanged |
+Every subtask is one complete pick-and-place, and it is also one world-model horizon. It starts and ends with nothing in
+the gripper and the arm back at the observation pose, because the arm cannot hold a block while the next subtask is
+planned and verified. Stacking and rearrangement are therefore single subtasks, with no separate "pick" and "place".
+
+| family | subtask | skill chain on the Jetson (one subtask) | what the critic checks (from pixels) |
+|---|---|---|---|
+| 1 — Bin clearing | `pick and place <c> block into the bin`, one per block | `pick_place` into the off-camera left bin | named blocks gone from the table, every other block still there |
+| 2 — Rearrangement | `pick and place <c> block to the left\|right of <b> block` | `locate` reference → `pick` → `place_at` beside the reference | moved block on the correct side of the reference, 0.6–3.5 block widths away, level within one block height, other blocks unchanged |
+| 3 — Stacking | `pick and place <c> block on <b> block` | `locate` base → `pick` → `place_on` the base | top block's centre inside the base block's footprint, other blocks unchanged |
 
 ## Tasks
 
@@ -25,16 +29,18 @@ Results go to `verify2act/results/<task>_<timestamp>/` (`episodes.jsonl`, `summa
 | task1b | Clear all cool-colored blocks into the bin and leave the yellow block | 1 | 2 | not run yet (09-24 session stopped before episode 1 finished) |
 | task1c | Clear all warm-colored blocks into the bin and leave the green block | 1 | 2 | 09-23: 3/10, then 6/10 after the bin-deposit fixes (7 verified) |
 | task1d | Put the red block, the green block and the blue block into the bin except the yellow block | 1 | 3 | 09-24: 3/3 |
-| task2a | Put the red block to the left of the blue block | 2 | 2 | 09-24: 4/4 (an earlier 0/4 session ran a grasp node started before `place_at` existed) |
-| task2b | Put the green block to the right of the yellow block | 2 | 2 | 09-24: 4/4 |
-| task3a | Stack the blue block on top of the yellow block | 3 | 2 | **deferred** — placement alignment issues in deployment |
+| task2a | Put the red block to the left of the blue block | 2 | 1 | 09-24: 4/4 (an earlier 0/4 session ran a grasp node started before `place_at` existed) |
+| task2b | Put the green block to the right of the yellow block | 2 | 1 | 09-24: 4/4 |
+| task3a | Stack the blue block on top of the yellow block | 3 | 1 | **deferred** — placement alignment issues in deployment |
 
 Counts are real successes / labeled episodes, from `verify2act/results/<task>_<timestamp>/episodes.jsonl`.
 All runs so far use the **stub** world model and critic; the evaluation proper uses the real ones.
 
 Tasks 1a–1d exercise the same skill and differ only in language (explicit colours, colour groups,
 "leave"/"except" exclusions), so they test goal grounding more than manipulation.
-Family 2 adds a spatial relation and a two-step hold-and-place.
+Family 2 adds a spatial relation and a place relative to another block.
+Plan length = subtasks = world-model horizons. The 09-24 family-2 runs used the older two-subtask
+`pick` / `place` plans.
 
 ## Scene setup
 

@@ -127,11 +127,16 @@ def main():
     meta = {"session": name, "task": task, "goal": goal, "episodes_planned": args.episodes, "backend": args.jetson_ip or ("local" if args.local else "synthetic"),
             "dry_run": args.dry_run, **loop_kwargs(args),
             "started": datetime.now().isoformat(timespec="seconds")}
+    if args.plan_server:
+        # the lab-PC server decides these; the Jetson's --theta_*/--max_* flags are ignored
+        from verify2act.remote.planner_client import SERVER_SETTINGS
+        meta.update(SERVER_SETTINGS, backend=f"{meta['backend']}+plan_server")
 
     pipe = Verify2ActPipeline(
         **loop_kwargs(args), dry_run=args.dry_run, jetson_ip=args.jetson_ip, bridge_port=args.bridge_port,
         local=args.local, output_dir=str(out_dir),
     )
+    pipe.session_name = name   # plan-server log folders: <name>_ep_NNN
 
     episodes: List[dict] = []
     print(f"\nSession '{name}'\nTask   : {task}\nGoal   : {goal}\nEpisodes: {args.episodes}\nResults -> {out_dir}\n")

@@ -46,7 +46,6 @@ from verify2act.v2a_critic import CriticModel
 from verify2act.v2a_decisions import check_rollout_consistency, decide_from_proximity
 from verify2act.v2a_plan_eval import evaluate_plan
 from verify2act.v2a_vlm_planner import VLMPlanner, Subtask
-from verify2act.v2a_goal import parse_relative, parse_stack
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -87,6 +86,7 @@ class Verify2ActPipeline:
         simulate_uncertainty: bool = False,
         execute_unverified: bool = False,
         wm_server: bool = False,          # world model + critic on a remote server (verify2act/remote/v2a_server.py)
+        plan_server: bool = False,        # plan + verify on the lab-PC server (research repo: verify2act/robot/server.py)
         dry_run: bool = False,
         jetson_ip: Optional[str] = None,
         bridge_port: int = 9090,
@@ -104,6 +104,7 @@ class Verify2ActPipeline:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.transitions_path: Optional[Path] = None   # set by the session; default <output_dir>/transitions.jsonl
         self.episode_id = "ep_000"
+        self.session_name = "run_" + time.strftime("%Y%m%d_%H%M%S")   # plan-server log folder prefix; the session runner overrides it
         self._injected = False
 
         self.world_model = WorldModelStub(debug_dir=str(self.output_dir))
@@ -138,9 +139,25 @@ class Verify2ActPipeline:
             self.world_model, self.critic = RemoteWorldModel(self.link), RemoteCritic(self.link)
             logger.info("[Pipeline] World model + critic are served remotely.")
 
+        self.planner_client = None
+        if plan_server:
+            ros = getattr(self.robot_client, "_ros", None)
+            if ros is None:
+                raise RuntimeError("--plan_server needs the rosbridge connection: pass --jetson_ip <ip> (127.0.0.1 on the Jetson).")
+            if wm_server:
+                raise RuntimeError("--plan_server replaces --wm_server; pass only one.")
+            if simulate_reprompt or simulate_temporal_inconsistency or simulate_uncertainty:
+                raise RuntimeError("The simulate_* ablations are stub features and are not supported with --plan_server.")
+            from verify2act.remote.planner_client import PlanServerClient
+            self.planner_client = PlanServerClient(ros)
+            self.planner_client.wait_for_server()
+            logger.info("[Pipeline] Planning + verification are served by the lab-PC plan server.")
+
     def close(self):
         if self.link:
             self.link.close()
+        if self.planner_client:
+            self.planner_client.close()
         if self.robot_client:
             self.robot_client.close()
 
@@ -158,12 +175,9 @@ class Verify2ActPipeline:
     # ── episode ───────────────────────────────────────────────────────────────
 
     def run(self, language_goal: str) -> bool:
-        stack, rel = parse_stack(language_goal), parse_relative(language_goal)
-        # stack base / rearrangement reference block: located before the pick, while nothing is held
-        self._ref_block = stack[1] if stack else (rel[2] if rel else None)
+        """One episode. Everything worth logging is left in self.last_result."""
         if self.robot_client is not None and not self.dry_run:
             self.robot_client.execute_subtask(color="red", action="reset", timeout=15.0)   # known pose before observing
-        """One episode. Everything worth logging is left in self.last_result."""
         t0 = time.time()
         self._injected = False
         self.planner._proposals = 0
@@ -180,6 +194,8 @@ class Verify2ActPipeline:
             self.last_result["elapsed_s"] = round(time.time() - t0, 2)
 
     def _run(self, goal: str) -> bool:
+        if self.planner_client is not None:
+            return self._run_plan_server(goal)
         res = self.last_result
         print_banner(f"VERIFY2ACT: GOAL = '{goal}'")
         s_init = self.observe()
@@ -247,6 +263,81 @@ class Verify2ActPipeline:
         res["goal_reached_real"] = decide_from_proximity(mean, self.theta_p, std, self.conf).action == "continue"
         return bool(res["goal_reached_real"])
 
+    def _run_plan_server(self, goal: str) -> bool:
+        """Receding horizon with the plan server: observe -> `plan` (propose + imagine + critics + reflect, remote)
+        -> execute -> re-observe, until the server reports `done` or the step budget is spent."""
+        from verify2act.remote.planner_client import subtask_from_text
+        res = self.last_result
+        print_banner(f"VERIFY2ACT (plan server): GOAL = '{goal}'")
+        s_init = self.observe()
+        cv2.imwrite(str(self.output_dir / "s_init.jpg"), s_init)
+        obs, history = s_init, []
+        session = f"{self.session_name}_{self.episode_id}"
+        self.planner_client.reset(session)
+
+        for t in range(self.max_steps):
+            res["steps"] = t + 1
+            print_banner(f"TIMESTEP {t + 1} / {self.max_steps}")
+            try:
+                r = self.planner_client.plan(session, obs, goal, history)
+            except (RuntimeError, TimeoutError) as e:
+                logger.error(f"[Plan server] {e}")
+                res["reject_reasons"].append(f"t{t + 1}: server error: {e}")
+                return False
+            print(f"[Plan server] planning_call {r.get('planning_call')} took {r.get('elapsed_s')} s "
+                  f"(logs on the lab PC: verify2act/output/real/{session}/)")
+
+            st = r["stats"]
+            res["vlm_calls"] += st["vlm_calls"]
+            res["replans"] += r["replan_attempts"]
+            res["requeries"] += st["requeries"]
+            res["temporal_rejections"] += st["temporal_rejections"]
+            res["goal_rejections"] += st["goal_rejections"]
+            res["critic_rejects"] += sum(not e["accepted"] for e in r["evaluations"])
+            for i, e in enumerate(r["evaluations"]):
+                print(f"  [eval {i + 1}] {e['plan']}  tc={e['tc']}  goal={e['goal']}  accepted={e['accepted']}")
+            for a in r["reflection_analyses"]:
+                print(f"  [reflect] {a}")
+
+            if r["done"]:
+                print("[Plan server] Goal judged complete (VLM 'done', confirmed by the goal head).")
+                res["goal_reached_real"] = True
+                return True
+            if r["invalid_steps"] or not r["plan"]:
+                logger.error(f"[Plan server] Unusable plan {r['plan']} (outside the vocabulary: {r['invalid_steps']}); not executing.")
+                res["reject_reasons"].append(f"t{t + 1}: unusable plan {r['plan']}")
+                return False
+            if r["accepted"]:
+                res["critic_accepts"] += 1
+                res["verified"] = True
+            else:
+                res["reject_reasons"].append(f"t{t + 1}: not verified after {r['replan_attempts']} replans "
+                                             f"(failed_step={r.get('failed_step')})")
+                if not self.execute_unverified:
+                    logger.error("[Verify2Act] Replan budget exhausted without a verified plan; not executing.")
+                    return False
+
+            try:
+                plan = [subtask_from_text(s) for s in r["plan"]]
+            except ValueError as e:
+                logger.error(f"[Plan server] {e}; not executing.")
+                res["reject_reasons"].append(f"t{t + 1}: {e}")
+                return False
+            res["plan"] = list(r["plan"])
+            self._print_plan(plan, r["replan_attempts"])
+            if self.dry_run:
+                print("\n[DRY RUN]: verification only, robot not moved.")
+                return bool(r["accepted"])
+
+            actions = plan[:1] if self.exec_mode == "step_by_step" else plan
+            if not self._execute(actions, history, goal_step=t + 1):
+                res["goal_reached_real"] = False
+                return False
+            obs = self.observe()
+            cv2.imwrite(str(self.output_dir / f"real_after_step{t + 1}.jpg"), obs)
+
+        return False   # step budget spent without `done`; the human y/n label decides real success
+
     # ── imagination + critic ──────────────────────────────────────────────────
 
     def _evaluate_plan(self, plan: List[Subtask], obs: np.ndarray, goal: str, s_init: np.ndarray):
@@ -282,14 +373,7 @@ class Verify2ActPipeline:
         for i, st in enumerate(actions):
             print(f"\n[Executing {i + 1}/{len(actions)}]: {st.action_text}")
             before = self.observe()
-            if st.kind == "pick" and getattr(self, "_ref_block", None):
-                # Locate the base / reference block from the unobstructed observation pose, before anything is held.
-                base = self._ref_block
-                if not self.robot_client.execute_subtask(color=base, action="locate", timeout=20.0):
-                    logger.error(f"Could not locate the base block ({base}); aborting before the pick.")
-                    return False
-            ok = self.robot_client.execute_subtask(color=st.color, target=st.target_placement, timeout=60.0,
-                                                   action=st.kind, base_color=st.base_color)
+            ok = self._run_skill(st)
             time.sleep(2.0)   # let the arm and camera settle
             after = self.observe()
             self._log_transition(goal_step, st.action_text, before, after, ok)
@@ -300,6 +384,21 @@ class Verify2ActPipeline:
             self.last_result["executed_actions"].append(st.action_text)
             self.last_result["executed"] = True
         return True
+
+    def _run_skill(self, st: Subtask) -> bool:
+        """One subtask = one complete pick-and-place, ending with nothing held. stack / rearrange chain the grasp
+        node's locate -> pick -> place_on | place_at back to back: the arm never holds a block while waiting."""
+        rc = self.robot_client
+        if st.kind == "pick_place":
+            return rc.execute_subtask(color=st.color, target=st.target_placement, timeout=60.0, action="pick_place")
+        # Locate the base / reference block from the unobstructed observation pose, before anything is held.
+        if not rc.execute_subtask(color=st.base_color, action="locate", timeout=20.0):
+            logger.error(f"Could not locate the {st.base_color} block; aborting before the pick.")
+            return False
+        if not rc.execute_subtask(color=st.color, target="hold", timeout=60.0, action="pick"):
+            return False
+        return rc.execute_subtask(color=st.color, target=st.target_placement, timeout=60.0,
+                                  action="place_on" if st.kind == "stack" else "place_at", base_color=st.base_color)
 
     def _log_transition(self, step: int, action_text: str, before: np.ndarray, after: np.ndarray, ok: bool):
         """Real-robot transition in the research repo's transitions.jsonl schema (train the WM / critic on it)."""
@@ -371,12 +470,14 @@ def add_loop_args(ap):
     ap.add_argument("--simulate_temporal_inconsistency", action="store_true", help="first imagined transition is wrong")
     ap.add_argument("--simulate_uncertainty", action="store_true", help="critic is uncertain once (exercises requery)")
     ap.add_argument("--wm_server", action="store_true", help="use the remote world-model/critic server (needs --jetson_ip)")
+    ap.add_argument("--plan_server", action="store_true",
+                    help="plan + verify on the lab-PC Verify2Act server (verify2act/robot/server.py); needs --jetson_ip")
     ap.add_argument("--execute_unverified", action="store_true", help="run the last plan even if never verified (unsafe)")
 
 
 def loop_kwargs(args) -> dict:
     keys = ["max_steps", "max_replans", "max_requery", "exec_mode", "theta_c", "theta_p", "simulate_reprompt",
-            "simulate_temporal_inconsistency", "simulate_uncertainty", "execute_unverified", "wm_server"]
+            "simulate_temporal_inconsistency", "simulate_uncertainty", "execute_unverified", "wm_server", "plan_server"]
     return {k: getattr(args, k) for k in keys}
 
 

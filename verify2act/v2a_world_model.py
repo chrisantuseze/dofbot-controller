@@ -100,7 +100,6 @@ class WorldModelStub:
 
     def __init__(self, debug_dir: Optional[str] = None):
         self.debug_dir = debug_dir
-        self._held = None   # (color, crop_bgr, crop_mask) of the block imagined to be in the gripper
 
     def create_synthetic_scene(self, present_colors=("green", "blue", "yellow")) -> np.ndarray:
         """Offline stand-in for the camera view: white sheet on a wooden table with blocks."""
@@ -137,29 +136,24 @@ class WorldModelStub:
         return erased
 
     def reset(self, session: str = "") -> None:
-        self._held = None
-
-    def _remember_block(self, frame: np.ndarray, color: str) -> None:
-        """Cut the block out of the frame so a later place_on can render it elsewhere."""
-        bb = blob_bbox(frame, color)
-        if bb:
-            x, y, w, h, m = bb
-            self._held = (color, frame[y:y + h, x:x + w].copy(), m)
+        """Nothing to reset: every subtask starts and ends with nothing held."""
 
     def _imagine_place_on(self, cur: np.ndarray, out: np.ndarray, color: str, base: str, fault_mode: bool,
                           relation: Optional[str] = None) -> str:
-        """Paste the held block on top of the base block (or, as a fault, in empty space beside it).
-        relation 'left_of' / 'right_of' (place_at): paste it next to the base block instead, ~2 block widths
-        centre to centre (the robot's default ~place_gap); as a fault, on the opposite side."""
-        if self._held is None or self._held[0] != color:
-            # Nothing was picked first: a real WM would hallucinate here; the stub leaves the scene unchanged
-            # so the critic can flag the ordering violation.
-            return f"no held {color} block to place"
+        """Pick-and-place in one step: cut the `color` block out of the table and paste it on top of the base
+        block (or, as a fault, in empty space beside it). relation 'left_of' / 'right_of' (rearrange): paste it
+        next to the base block instead, ~2 block widths centre to centre (the robot's default ~place_gap); as a
+        fault, on the opposite side."""
+        grabbed = blob_bbox(cur, color)
+        if grabbed is None:
+            return f"no {color} block to pick"
         bb = blob_bbox(cur, base)
         if bb is None:
             return f"base {base} block not visible"
         bx, by, bw, bh, _ = bb
-        _, crop, mask = self._held
+        x, y, w, h, mask = grabbed
+        crop = cur[y:y + h, x:x + w]
+        self._erase_block(out, color)
         ch, cw = mask.shape
         cx, cy = bx + bw // 2, by + bh // 2 - int(0.15 * bh)      # slightly raised = sitting on top
         fault = ""
@@ -189,19 +183,17 @@ class WorldModelStub:
         shows up in pixels, which the critic has to detect visually.
         """
         kind, color, base = parse_step(action_text)
-        dest = {"pick_place": "left_bin", "pick": "hold", "place_on": f"on_{base}"}.get(kind)
+        dest = {"pick_place": "left_bin", "stack": f"on_{base}"}.get(kind)
         next_frame = current_frame.copy()
 
         fault = ""
-        if kind == "place_on":
+        if kind == "stack":
             fault = self._imagine_place_on(current_frame, next_frame, color, base, simulate_inconsistency)
-        elif kind == "place_at":
+        elif kind == "rearrange":
             relation = (parse_relative(action_text) or (None, "left_of", None))[1]
             dest = f"{relation}_{base}"
             fault = self._imagine_place_on(current_frame, next_frame, color, base, simulate_inconsistency, relation)
         else:
-            if kind == "pick":
-                self._remember_block(current_frame, color)
             target = color
             if simulate_inconsistency:
                 wrong = next((c for c in COLOR_BGR if c != color and color_pixels(current_frame, c) >= MIN_BLOCK_PIXELS), None)

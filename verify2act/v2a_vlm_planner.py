@@ -31,8 +31,8 @@ class Subtask:
     color: str
     color_id: int
     target_placement: str
-    kind: str = "pick_place"          # pick_place | pick | place_on | place_at
-    base_color: Optional[str] = None  # place_on: block to stack onto; place_at: reference block
+    kind: str = "pick_place"          # pick_place | stack | rearrange: each one complete pick-and-place
+    base_color: Optional[str] = None  # stack: block to stack onto; rearrange: reference block
 
 
 class VLMPlanner:
@@ -61,18 +61,15 @@ class VLMPlanner:
         flawed = self.simulate_reprompt and self._proposals == 1
         logger.info(f"[VLM Planner] propose #{self._proposals} for '{language_goal}' (history={history})")
 
+        # One horizon = one complete pick-and-place, so stacking and rearrangement are single subtasks.
         stack = parse_stack(language_goal)
         if stack:
             top, base = stack
-            if flawed:   # classic ordering mistake: grab the BASE block first and stack it backwards
-                logger.info("[VLM Planner] (simulating a naive proposal: base block picked first)")
+            if flawed:   # classic ordering mistake: the base block moved onto the top one
+                logger.info("[VLM Planner] (simulating a naive proposal: top and base swapped)")
                 top, base = base, top
-            holding = bool(history) and history[-1] == f"pick {top} block"
-            plan = [Subtask(f"place {top} block on {base} block", top, COLOR_CODE_MAP[top], "on_" + base,
-                            kind="place_on", base_color=base)]
-            if not holding:
-                plan.insert(0, Subtask(f"pick {top} block", top, COLOR_CODE_MAP[top], "hold", kind="pick"))
-            return plan
+            return [Subtask(f"pick and place {top} block on {base} block", top, COLOR_CODE_MAP[top], "on_" + base,
+                            kind="stack", base_color=base)]
 
         rel = parse_relative(language_goal)
         if rel:
@@ -80,13 +77,9 @@ class VLMPlanner:
             if flawed:   # classic spatial mistake: the right blocks, the wrong side
                 logger.info("[VLM Planner] (simulating a naive proposal: wrong side of the reference block)")
                 relation = "right_of" if relation == "left_of" else "left_of"
-            holding = bool(history) and history[-1] == f"pick {mover} block"
             side = relation.split("_")[0]
-            plan = [Subtask(f"place {mover} block to the {side} of {ref} block", mover, COLOR_CODE_MAP[mover],
-                            relation, kind="place_at", base_color=ref)]
-            if not holding:
-                plan.insert(0, Subtask(f"pick {mover} block", mover, COLOR_CODE_MAP[mover], "hold", kind="pick"))
-            return plan
+            return [Subtask(f"pick and place {mover} block to the {side} of {ref} block", mover, COLOR_CODE_MAP[mover],
+                            relation, kind="rearrange", base_color=ref)]
 
         move, keep = parse_goal(language_goal)
         if current_frame is not None:
